@@ -2,53 +2,25 @@ import AppKit
 import FreshetCore
 import SwiftUI
 
-/// The main window: categories in the sidebar; a header, an overview of transfers, the
-/// torrent list and the detail tabs on the right.
+/// The main window: a fixed sidebar (brand, filters, labels, connection) beside the page —
+/// a header, notices, the transfer overview, the torrent list and the details panel.
 struct MainView: View {
     @Environment(AppModel.self) private var model
-
     @AppStorage(TorrentListStyle.storageKey) private var listStyle: TorrentListStyle = .cards
+    @AppStorage("sidebarHidden") private var sidebarHidden = false
 
     var body: some View {
         @Bindable var model = model
-        NavigationSplitView {
-            SidebarView()
-        } detail: {
-            VStack(spacing: 0) {
-                NoticeArea()
-                ContentHeader()
-                OverviewStrip()
-                VSplitView {
-                    VStack(spacing: 6) {
-                        HStack {
-                            Spacer()
-                            if listStyle == .cards { SortMenu() }
-                        }
-                        .padding(.horizontal, 4)
-                        Group {
-                            switch listStyle {
-                            case .cards: TorrentCardsView()
-                            case .table: TorrentListView()
-                            }
-                        }
-                        .panel()
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, model.showInspector ? 8 : 16)
-                    .frame(minHeight: 180, idealHeight: 420, maxHeight: .infinity)
-                    if model.showInspector {
-                        DetailTabsView()
-                            .panel()
-                            .padding(.horizontal, 16)
-                            .padding(.top, 8)
-                            .padding(.bottom, 16)
-                            .frame(minHeight: 190, idealHeight: 280, maxHeight: .infinity)
-                    }
-                }
+        HStack(spacing: 0) {
+            if !sidebarHidden {
+                SidebarView()
+                SidebarDivider()
             }
-            .background(Color(nsColor: .windowBackgroundColor))
+            page
         }
+        .themedWindow()
         .navigationTitle(model.windowTitle)
+        .focusedSceneValue(\.sidebarHidden, $sidebarHidden)
         .sheet(isPresented: $model.isAddSheetPresented) {
             if let pending = model.pendingAdds.first {
                 AddTorrentSheet(pending: pending).id(pending.id)
@@ -73,6 +45,40 @@ struct MainView: View {
             model.handleOpen(urls)
             return true
         }
+    }
+
+    private var page: some View {
+        VStack(spacing: 0) {
+            PageHeader(leadingInset: sidebarHidden ? PageLayout.windowButtonsWidth : 0)
+            NoticeArea()
+            OverviewSummary()
+            VSplitView {
+                VStack(spacing: Spacing.xSmall) {
+                    ListControls()
+                    switch listStyle {
+                    case .cards:
+                        TorrentCardList()
+                    case .table:
+                        TorrentListView()
+                            .card()
+                            .padding(.horizontal, PageLayout.horizontalInset)
+                    }
+                }
+                .padding(.bottom, model.showInspector ? Spacing.xSmall : Spacing.large)
+                .frame(minHeight: 200, idealHeight: 440, maxHeight: .infinity)
+                if model.showInspector {
+                    DetailTabsView()
+                        .card()
+                        .padding(.horizontal, PageLayout.horizontalInset)
+                        .padding(.top, Spacing.xSmall)
+                        .padding(.bottom, Spacing.large)
+                        .frame(minHeight: 200, idealHeight: 280, maxHeight: .infinity)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .ignoresSafeArea(.container, edges: .top)
+        .background(Colors.surfaceBase)
     }
 
     private var removeTitle: String {
@@ -106,6 +112,7 @@ struct WebSearchButton: View {
         Button { model.showWebSearch.toggle() } label: {
             Label("Search the Web", systemImage: "globe")
         }
+        .buttonStyle(.freshet(.secondary, width: .square))
         .help("Search the web for torrents (⌥⌘F)")
         .popover(isPresented: $model.showWebSearch, arrowEdge: .bottom) { WebSearchPopover() }
     }
@@ -113,7 +120,7 @@ struct WebSearchButton: View {
 
 struct WebSearchPopover: View {
     @Environment(AppModel.self) private var model
-    @Environment(\.openSettings) private var openSettings
+    @Environment(\.openWindow) private var openWindow
     @AppStorage(SettingsPane.storageKey) private var pane: SettingsPane = .general
     @State private var query = ""
     @FocusState private var focused: Bool
@@ -122,38 +129,42 @@ struct WebSearchPopover: View {
         let settings = model.settings
         let providers = settings.searchProviders
         let current = providers.first { $0.id == settings.selectedSearchProvider } ?? providers.first
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Search the Web for Torrents").font(.headline)
+        VStack(alignment: .leading, spacing: Spacing.small) {
+            Text("Search the Web for Torrents").font(Typography.sectionTitle)
             if let current {
                 if providers.count > 1 {
-                    Picker("Site", selection: Binding(get: { current.id }, set: { settings.selectedSearchProvider = $0 })) {
-                        ForEach(providers) { provider in Text(provider.name).tag(provider.id) }
+                    ValuePicker("Site", selection: Binding(get: { current.id }, set: { settings.selectedSearchProvider = $0 }),
+                                options: providers.map(\.id)) { id in
+                        providers.first { $0.id == id }?.name ?? ""
                     }
                 }
-                HStack {
-                    TextField("Search \(current.name)", text: $query, prompt: Text("Search \(current.name)"))
-                        .labelsHidden()
-                        .textFieldStyle(.roundedBorder)
-                        .focused($focused)
+                HStack(spacing: Spacing.xSmall) {
+                    TextInput("Search \(current.name)", text: $query, prompt: "Search \(current.name)", width: nil, focus: $focused)
                         .onSubmit(search)
                     Button("Search", action: search)
+                        .buttonStyle(.freshet(.primary))
                         .keyboardShortcut(.defaultAction)
                         .disabled(query.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
-                Text("Results open in your browser.").font(.callout).foregroundStyle(.secondary)
+                Text("Results open in your browser.").font(Typography.callout).foregroundStyle(Colors.textSecondary)
             } else {
                 Text("Add the search sites you use, then search them from here.")
-                    .foregroundStyle(.secondary)
+                    .font(Typography.callout)
+                    .foregroundStyle(Colors.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                 Button("Add a Search Site…") {
                     model.showWebSearch = false
                     pane = .search
-                    openSettings()
+                    openWindow(id: settingsWindowID)
                 }
+                .buttonStyle(.freshet(.secondary, size: .small))
             }
         }
-        .padding(16)
+        .padding(Spacing.medium)
         .frame(width: 340)
+        .font(Typography.body)
+        .foregroundStyle(Colors.textPrimary)
+        .tint(Colors.textPrimary)
         .onAppear { focused = true }
     }
 
@@ -166,75 +177,170 @@ struct WebSearchPopover: View {
     }
 }
 
+/// The sidebar: the brand under the window buttons, the filters and labels as rows that fill
+/// their icon when selected, and a connection card at the bottom.
 struct SidebarView: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
-        List(selection: selectionBinding) {
-            Section("Torrents") {
-                ForEach(SidebarFilter.standard, id: \.self) { filter in
-                    SidebarRow(title: filter.title, systemImage: filter.systemImage, count: model.count(for: filter))
-                        .tag(Optional(filter))
+        VStack(alignment: .leading, spacing: 0) {
+            BrandMark()
+                .padding(.top, PageLayout.sidebarTopInset)
+                .padding(.bottom, Spacing.large)
+                .padding(.horizontal, Spacing.small + Spacing.xSmall)
+            ScrollView {
+                VStack(alignment: .leading, spacing: Spacing.xxxSmall) {
+                    ForEach(SidebarFilter.standard, id: \.self) { filter in
+                        row(filter, title: filter.title, systemImage: filter.systemImage)
+                    }
+                    SidebarSectionLabel(title: "Labels")
+                    row(.noLabel, title: SidebarFilter.noLabel.title, systemImage: SidebarFilter.noLabel.systemImage)
+                    ForEach(model.labels.names, id: \.self) { name in
+                        row(.label(name), title: name, systemImage: "tag")
+                            .contextMenu {
+                                Button("Delete Label") { model.deleteLabel(name) }
+                            }
+                    }
                 }
+                .padding(.horizontal, Spacing.small)
             }
-            Section("Labels") {
-                SidebarRow(title: SidebarFilter.noLabel.title, systemImage: SidebarFilter.noLabel.systemImage,
-                           count: model.count(for: .noLabel))
-                    .tag(Optional(SidebarFilter.noLabel))
-                ForEach(model.labels.names, id: \.self) { name in
-                    SidebarRow(title: name, systemImage: "tag", count: model.count(for: .label(name)))
-                        .tag(Optional(SidebarFilter.label(name)))
-                        .contextMenu {
-                            Button("Delete Label") { model.deleteLabel(name) }
-                        }
-                }
-            }
+            .scrollIndicators(.never)
+            Spacer(minLength: Spacing.medium)
+            ConnectionCard()
+                .padding(.horizontal, Spacing.small)
+                .padding(.bottom, Spacing.small)
         }
-        .listStyle(.sidebar)
-        .safeAreaInset(edge: .top, spacing: 0) { SidebarHeader() }
-        .navigationSplitViewColumnWidth(min: 190, ideal: 220)
+        .frame(width: PageLayout.sidebarWidth)
+        .frame(maxHeight: .infinity, alignment: .topLeading)
+        .background(Colors.surfaceCard)
+        .ignoresSafeArea(.container, edges: .top)
     }
 
-    private var selectionBinding: Binding<SidebarFilter?> {
-        Binding(get: { model.filter }, set: { if let value = $0 { model.filter = value } })
+    private func row(_ filter: SidebarFilter, title: String, systemImage: String) -> some View {
+        NavRow(title: title, systemImage: systemImage, isSelected: model.filter == filter,
+               count: model.count(for: filter)) {
+            model.filter = filter
+        }
     }
+
 }
 
-/// The app's icon and name at the top of the sidebar.
-struct SidebarHeader: View {
+/// The app's icon beside a name: Freshet in the main window, the window's job elsewhere.
+struct BrandMark: View {
+    var title = "Freshet"
+
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: Spacing.xSmall) {
             Image(nsImage: NSApp.applicationIconImage ?? NSImage())
                 .resizable()
+                .aspectRatio(contentMode: .fit)
                 .frame(width: 22, height: 22)
                 .accessibilityHidden(true)
-            Text("Freshet").font(.headline)
-            Spacer()
+            Text(title).font(Typography.sectionTitle)
         }
-        .padding(.horizontal, 18)
-        .padding(.top, 6)
-        .padding(.bottom, 4)
         .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
     }
 }
 
-/// A sidebar item with its count as quiet right-aligned text rather than a badge.
-struct SidebarRow: View {
+/// A sidebar row: outline icon that fills when selected, the title, and a quiet count.
+struct NavRow: View {
     let title: String
     let systemImage: String
+    let isSelected: Bool
     let count: Int
+    let action: () -> Void
+    @State private var hovering = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        HStack {
-            Label(title, systemImage: systemImage)
-            Spacer(minLength: 6)
-            if count > 0 {
-                Text("\(count)")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
+        Button(action: action) {
+            HStack(spacing: Spacing.xSmall) {
+                Image(systemName: isSelected ? Self.filled(systemImage) : systemImage)
+                    .font(Typography.rowTitle)
+                    .frame(width: 16)
+                    .contentTransition(reduceMotion ? .identity : .symbolEffect(.replace))
+                    .foregroundStyle(isSelected ? Colors.textPrimary : Colors.textSecondary)
+                Text(title)
+                    .font(Typography.body.weight(isSelected ? .semibold : .medium))
+                    .lineLimit(1)
+                Spacer(minLength: Spacing.xSmall)
+                if count > 0 {
+                    Text("\(count)")
+                        .font(Typography.metadataEmphasis.numbers)
+                        .monospacedDigit()
+                        .foregroundStyle(Colors.textTertiary)
+                }
+            }
+            .foregroundStyle(isSelected ? Colors.textPrimary : Colors.textSecondary)
+            .padding(.horizontal, Spacing.xSmall)
+            .padding(.vertical, Spacing.xxSmallPlus)
+            .background(isSelected ? Colors.fillSecondary : (hovering ? Colors.surfaceCardHover : .clear),
+                        in: RoundedRectangle(cornerRadius: Radius.md, style: .continuous))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(isSelected ? [.isSelected, .isButton] : .isButton)
+    }
+
+    /// The filled variant of a symbol when SF Symbols has one.
+    static func filled(_ name: String) -> String {
+        let candidate = name + ".fill"
+        return NSImage(systemSymbolName: candidate, accessibilityDescription: nil) == nil ? name : candidate
+    }
+}
+
+/// The sidebar's bottom card: whether peers can reach this Mac, and the DHT size.
+struct ConnectionCard: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.xxSmallPlus) {
+            HStack(spacing: Spacing.xSmall) {
+                Image(systemName: statusSymbol)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(statusColor)
+                    .frame(width: 16)
+                    .accessibilityHidden(true)
+                Text(statusText).font(Typography.callout.weight(.medium))
+                Spacer(minLength: 0)
+            }
+            HStack(spacing: Spacing.xSmall) {
+                Image(systemName: "point.3.connected.trianglepath.dotted")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(Colors.textSecondary)
+                    .frame(width: 16)
+                    .accessibilityHidden(true)
+                Text("\(model.session.dhtNodes) DHT nodes")
+                    .font(Typography.callout.numbers)
                     .monospacedDigit()
+                    .foregroundStyle(Colors.textSecondary)
+                    .help("Peers found without a tracker")
+                Spacer(minLength: 0)
             }
         }
+        .padding(Spacing.small)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Colors.fillSecondary, in: RoundedRectangle(cornerRadius: Radius.lg, style: .continuous))
         .accessibilityElement(children: .combine)
+    }
+
+    private var statusText: String {
+        if model.isSimulated { return "Simulated session" }
+        guard model.session.isListening else { return "Not listening" }
+        let port = String(model.session.listenPort)
+        return model.hasIncomingConnections ? "Port \(port) is open" : "Listening on port \(port)"
+    }
+
+    private var statusSymbol: String {
+        if !model.session.isListening { return "exclamationmark.triangle.fill" }
+        return model.hasIncomingConnections ? "checkmark.circle.fill" : "network"
+    }
+
+    private var statusColor: Color {
+        if !model.session.isListening { return Colors.statusDangerText }
+        return model.hasIncomingConnections ? Colors.statusSafeText : Colors.textSecondary
     }
 }

@@ -89,7 +89,8 @@ let package = Package(
             path: "Sources/FreshetApp",
             // DB-IP Lite country data (CC BY 4.0), converted by Scripts/make-country-db.py.
             resources: [.copy("Resources/countries.fcdb"), .copy("Resources/DBIP-LICENSE.txt"),
-                        .copy("Resources/THIRD_PARTY_NOTICES.txt")]
+                        .copy("Resources/THIRD_PARTY_NOTICES.txt"),
+                        .copy("Resources/Onest.ttf")]
         ),
         // Command-line end-to-end check: download, crash, resume.
         .executableTarget(

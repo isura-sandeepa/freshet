@@ -66,8 +66,9 @@ struct MenuBarContent: View {
             openWindow(id: mainWindowID)
             NSApp.activate()
         }
-        SettingsLink {
-            Text("Settings…")
+        Button("Settings…") {
+            openWindow(id: settingsWindowID)
+            NSApp.activate()
         }
         Divider()
         Button("Quit Freshet") { NSApp.terminate(nil) }

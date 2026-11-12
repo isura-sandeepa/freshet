@@ -26,14 +26,20 @@ struct DetailTabsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Picker("Details", selection: $tab) {
-                ForEach(DetailTab.allCases) { tab in Text(tab.title).tag(tab) }
+            HStack {
+                ChipTabs(tabs: DetailTab.allCases, selection: $tab) { $0.title }
+                Spacer()
+                if let torrent = model.focusedTorrent, tab != .speed, tab != .logger {
+                    Text(torrent.displayName)
+                        .font(Typography.metadata)
+                        .foregroundStyle(Colors.textTertiary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
             }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .fixedSize()
-            .padding(.vertical, 6)
-            Divider()
+            .padding(.horizontal, Spacing.small)
+            .padding(.vertical, Spacing.xSmall)
+            CardDivider(inset: 0)
             content
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -58,10 +64,32 @@ struct DetailTabsView: View {
                     TrackersTab(torrentID: torrent.id, trackers: model.details?.trackers ?? [])
                 }
             } else {
-                ContentUnavailableView("No Torrent Selected", systemImage: "info.circle",
-                                       description: Text("Select a torrent to see its details."))
+                EmptyStateView(symbol: "info.circle", title: "No torrent selected",
+                               message: "Select a torrent to see its details.") { EmptyView() }
             }
         }
+    }
+}
+
+/// A tab's bottom bar: quiet actions on a hairline.
+struct TabFooter<Content: View>: View {
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        VStack(spacing: 0) {
+            CardDivider(inset: 0)
+            HStack(spacing: Spacing.xSmall) { content }
+                .padding(.horizontal, Spacing.small)
+                .padding(.vertical, Spacing.xSmall)
+        }
+    }
+}
+
+extension View {
+    /// Tables inside cards: no stripes, the card's own surface behind them.
+    func cardTable() -> some View {
+        alternatingRowBackgrounds(.disabled)
+            .scrollContentBackground(.hidden)
     }
 }
 
@@ -71,62 +99,57 @@ struct GeneralTab: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Text("Downloaded:").foregroundStyle(.secondary).frame(width: 90, alignment: .trailing)
-                    ProgressView(value: min(max(torrent.progress, 0), 1))
-                    Text(Format.percent(torrent.progress)).monospacedDigit().frame(width: 60, alignment: .trailing)
+            VStack(alignment: .leading, spacing: Spacing.medium) {
+                VStack(spacing: Spacing.xSmall) {
+                    meter("Downloaded", value: torrent.progress, text: Format.percent(torrent.progress),
+                          color: StateStyle(torrent).color)
+                    meter("Availability", value: torrent.availability, text: Format.availability(torrent.availability),
+                          color: Colors.Chart.neutral)
                 }
-                HStack {
-                    Text("Availability:").foregroundStyle(.secondary).frame(width: 90, alignment: .trailing)
-                    ProgressView(value: min(max(torrent.availability, 0), 1))
-                    Text(Format.availability(torrent.availability)).monospacedDigit().frame(width: 60, alignment: .trailing)
-                }
-                GroupBox("Transfer") {
-                    Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 10, verticalSpacing: 4) {
+                section("Transfer") {
+                    Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: Spacing.small, verticalSpacing: Spacing.xxSmallPlus) {
                         GridRow {
-                            key("Time Elapsed:"); value(Format.duration(TimeInterval(torrent.activeSeconds)))
-                            key("Remaining:"); value(torrent.isComplete ? "Done" : Format.duration(torrent.eta))
-                            key("Share Ratio:"); value(Format.ratio(torrent.ratio))
+                            key("Time elapsed"); value(Format.duration(TimeInterval(torrent.activeSeconds)))
+                            key("Remaining"); value(torrent.isComplete ? "Done" : Format.duration(torrent.eta))
+                            key("Share ratio"); value(Format.ratio(torrent.ratio))
                         }
                         GridRow {
-                            key("Downloaded:"); value(Format.bytes(torrent.allTimeDownload))
-                            key("Download Speed:"); value(Format.rateOrZero(torrent.downloadRate))
-                            key("Seeds:"); value(Format.count(torrent.connectedSeeds, of: torrent.swarmSeeds))
+                            key("Downloaded"); value(Format.bytes(torrent.allTimeDownload))
+                            key("Download speed"); value(Format.rateOrZero(torrent.downloadRate))
+                            key("Seeds"); value(Format.count(torrent.connectedSeeds, of: torrent.swarmSeeds))
                         }
                         GridRow {
-                            key("Uploaded:"); value(Format.bytes(torrent.allTimeUpload))
-                            key("Upload Speed:"); value(Format.rateOrZero(torrent.uploadRate))
-                            key("Peers:"); value(Format.count(torrent.connectedLeechers, of: torrent.swarmPeers))
+                            key("Uploaded"); value(Format.bytes(torrent.allTimeUpload))
+                            key("Upload speed"); value(Format.rateOrZero(torrent.uploadRate))
+                            key("Peers"); value(Format.count(torrent.connectedLeechers, of: torrent.swarmPeers))
                         }
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                GroupBox("General") {
-                    Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 10, verticalSpacing: 4) {
-                        GridRow { key("Save As:"); value((torrent.savePath as NSString).appendingPathComponent(torrent.name)) }
-                        GridRow { key("Total Size:"); value(info.map { Format.bytes($0.totalSize) } ?? "Waiting for metadata") }
-                        GridRow { key("Pieces:"); value(piecesText) }
-                        GridRow { key("Created On:"); value(Format.date(info?.creationDate)) }
-                        GridRow { key("Created By:"); value(info?.creator ?? "") }
-                        GridRow { key("Added On:"); value(Format.date(torrent.addedDate)) }
-                        GridRow { key("Completed On:"); value(Format.date(torrent.completedDate)) }
-                        GridRow { key("Hash:"); value(hashText) }
-                        GridRow { key("Tracker:"); value(torrent.currentTracker) }
-                        GridRow { key("Comment:"); value(info?.comment ?? "") }
+                section("General") {
+                    Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: Spacing.small, verticalSpacing: Spacing.xxSmallPlus) {
+                        GridRow { key("Save as"); value((torrent.savePath as NSString).appendingPathComponent(torrent.name)) }
+                        GridRow { key("Total size"); value(info.map { Format.bytes($0.totalSize) } ?? "Waiting for metadata") }
+                        GridRow { key("Pieces"); value(piecesText) }
+                        GridRow { key("Created on"); value(Format.date(info?.creationDate)) }
+                        GridRow { key("Created by"); value(info?.creator ?? "") }
+                        GridRow { key("Added on"); value(Format.date(torrent.addedDate)) }
+                        GridRow { key("Completed on"); value(Format.date(torrent.completedDate)) }
+                        GridRow { key("Hash"); value(hashText, monospaced: true) }
+                        GridRow { key("Tracker"); value(torrent.currentTracker) }
+                        GridRow { key("Comment"); value(info?.comment ?? "") }
                         if let error = torrent.errorMessage {
                             GridRow {
-                                key("Error:")
+                                key("Error")
                                 Label(error, systemImage: "exclamationmark.triangle.fill")
-                                    .foregroundStyle(Palette.error)
+                                    .font(Typography.callout)
+                                    .foregroundStyle(Colors.statusDangerText)
                                     .lineLimit(1).truncationMode(.middle).textSelection(.enabled)
                             }
                         }
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
-            .padding(10)
+            .padding(Spacing.medium)
         }
     }
 
@@ -142,12 +165,49 @@ struct GeneralTab: View {
         return info.infoHashV1.isEmpty ? info.infoHashV2 : info.infoHashV1
     }
 
-    private func key(_ text: String) -> some View {
-        Text(text).foregroundStyle(.secondary).gridColumnAlignment(.trailing)
+    private func meter(_ title: String, value: Double, text: String, color: Color) -> some View {
+        HStack(spacing: Spacing.small) {
+            Text(title)
+                .font(Typography.callout)
+                .foregroundStyle(Colors.textSecondary)
+                .frame(width: 84, alignment: .leading)
+            ProgressTrack(value: value, color: color, height: 6)
+            Text(text)
+                .font(Typography.callout.numbers)
+                .monospacedDigit()
+                .frame(width: 56, alignment: .trailing)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(title)
+        .accessibilityValue(text)
     }
 
-    private func value(_ text: String) -> some View {
-        Text(text).lineLimit(1).truncationMode(.middle).textSelection(.enabled)
+    private func section<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.xSmall) {
+            Text(title)
+                .font(Typography.metadataEmphasis)
+                .foregroundStyle(Colors.textSecondary)
+                .accessibilityAddTraits(.isHeader)
+            content()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(Spacing.small)
+                .insetCard()
+        }
+    }
+
+    private func key(_ text: String) -> some View {
+        Text(text)
+            .font(Typography.callout)
+            .foregroundStyle(Colors.textSecondary)
+            .gridColumnAlignment(.leading)
+    }
+
+    private func value(_ text: String, monospaced: Bool = false) -> some View {
+        Text(text)
+            .font(monospaced ? Typography.callout.monospaced() : Typography.callout)
+            .lineLimit(1)
+            .truncationMode(.middle)
+            .textSelection(.enabled)
     }
 }
 
@@ -160,30 +220,35 @@ struct FilesTab: View {
 
     var body: some View {
         if files.isEmpty {
-            ContentUnavailableView(torrent.hasMetadata ? "Loading Files" : "Waiting for Metadata", systemImage: "doc.on.doc",
-                                   description: Text(torrent.hasMetadata ? "" : "The file list appears once peers send the torrent's metadata."))
+            EmptyStateView(symbol: "doc.on.doc", title: torrent.hasMetadata ? "Loading files" : "Waiting for metadata",
+                           message: torrent.hasMetadata ? "The file list appears in a moment."
+                                                        : "The file list appears once peers send the torrent's details.") { EmptyView() }
         } else {
             Table(files.sorted(using: sortOrder), selection: $selection, sortOrder: $sortOrder) {
                 TableColumn("Name", value: \.path) { file in
                     Text(file.path).lineLimit(1).truncationMode(.middle)
-                        .foregroundStyle(file.priority == .skip ? .secondary : .primary)
+                        .foregroundStyle(file.priority == .skip ? Colors.textTertiary : Colors.textPrimary)
                 }
                 TableColumn("Size", value: \.size) { file in
-                    Text(Format.bytes(file.size)).monospacedDigit()
+                    Text(Format.bytes(file.size)).font(Typography.body.numbers).monospacedDigit()
                 }
                 .width(min: 60, ideal: 80, max: 120)
                 TableColumn("Done", value: \.progress) { file in
-                    HStack(spacing: 6) {
-                        ProgressView(value: file.progress)
-                        Text(Format.percent(file.progress)).monospacedDigit().frame(width: 52, alignment: .trailing)
+                    HStack(spacing: Spacing.xxSmallPlus) {
+                        ProgressTrack(value: file.progress, color: file.progress >= 1 ? Colors.State.done : Colors.State.downloading)
+                        Text(Format.percent(file.progress)).font(Typography.callout.numbers).monospacedDigit()
+                            .frame(width: 52, alignment: .trailing)
                     }
+                    .accessibilityElement(children: .combine)
                 }
                 .width(min: 100, ideal: 150, max: 220)
                 TableColumn("Priority", value: \.priorityRank) { file in
                     Text(file.priority.title)
+                        .foregroundStyle(file.priority == .skip ? Colors.textTertiary : Colors.textSecondary)
                 }
                 .width(min: 80, ideal: 100, max: 130)
             }
+            .cardTable()
             .contextMenu(forSelectionType: FileEntry.ID.self) { ids in
                 if !ids.isEmpty {
                     ForEach(FilePriority.allCases.reversed(), id: \.self) { priority in
@@ -212,48 +277,63 @@ struct PeersTab: View {
         let rows = peers.map { Row(peer: $0, country: countries?.country(for: $0.ip) ?? "") }.sorted(using: sortOrder)
         VStack(spacing: 0) {
             if peers.isEmpty {
-                ContentUnavailableView("No Peers Connected", systemImage: "person.2")
+                EmptyStateView(symbol: "person.2", title: "No peers connected",
+                               message: "Peers appear here as Freshet finds them.") { EmptyView() }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 Table(rows, sortOrder: $sortOrder) {
                     TableColumn("Country", value: \.country) { row in
                         let name = Locale.current.localizedString(forRegionCode: row.country) ?? row.country
-                        HStack(spacing: 4) {
+                        HStack(spacing: Spacing.xxSmall) {
                             Text(CountryDatabase.flag(for: row.country))
-                            Text(row.country.uppercased()).foregroundStyle(.secondary)
+                            Text(row.country.uppercased()).foregroundStyle(Colors.textSecondary)
                         }
                         .help(name)
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel(row.country.isEmpty ? "Unknown" : name)
                     }
                     .width(min: 50, ideal: 64, max: 90)
-                    TableColumn("IP", value: \.peer.ip) { row in Text(row.peer.address).monospacedDigit() }
+                    TableColumn("IP", value: \.peer.ip) { row in Text(row.peer.address).font(Typography.body.numbers).monospacedDigit() }
                         .width(min: 120, ideal: 170)
                     TableColumn("Client", value: \.peer.client) { row in Text(row.peer.client) }
                         .width(min: 100, ideal: 150)
-                    TableColumn("Flags", value: \.peer.flags) { row in Text(row.peer.flags) }
+                    TableColumn("Flags", value: \.peer.flags) { row in Text(row.peer.flags).font(Typography.callout.monospaced()) }
                         .width(min: 40, ideal: 60)
-                    TableColumn("%", value: \.peer.progress) { row in Text(Format.percent(row.peer.progress)).monospacedDigit() }
-                        .width(min: 50, ideal: 60)
-                    TableColumn("Down Speed", value: \.peer.downloadRate) { row in Text(Format.rate(row.peer.downloadRate)).monospacedDigit() }
-                        .width(min: 70, ideal: 90)
-                    TableColumn("Up Speed", value: \.peer.uploadRate) { row in Text(Format.rate(row.peer.uploadRate)).monospacedDigit() }
-                        .width(min: 70, ideal: 90)
-                    TableColumn("Downloaded", value: \.peer.totalDownload) { row in Text(Format.bytes(row.peer.totalDownload)).monospacedDigit() }
-                        .width(min: 70, ideal: 90)
-                    TableColumn("Uploaded", value: \.peer.totalUpload) { row in Text(Format.bytes(row.peer.totalUpload)).monospacedDigit() }
-                        .width(min: 70, ideal: 90)
+                    TableColumn("%", value: \.peer.progress) { row in
+                        Text(Format.percent(row.peer.progress)).font(Typography.body.numbers).monospacedDigit()
+                    }
+                    .width(min: 50, ideal: 60)
+                    TableColumn("Down Speed", value: \.peer.downloadRate) { row in
+                        Text(Format.rate(row.peer.downloadRate)).font(Typography.body.numbers).monospacedDigit()
+                    }
+                    .width(min: 70, ideal: 90)
+                    TableColumn("Up Speed", value: \.peer.uploadRate) { row in
+                        Text(Format.rate(row.peer.uploadRate)).font(Typography.body.numbers).monospacedDigit()
+                    }
+                    .width(min: 70, ideal: 90)
+                    TableColumn("Downloaded", value: \.peer.totalDownload) { row in
+                        Text(Format.bytes(row.peer.totalDownload)).font(Typography.body.numbers).monospacedDigit()
+                    }
+                    .width(min: 70, ideal: 90)
+                    TableColumn("Uploaded", value: \.peer.totalUpload) { row in
+                        Text(Format.bytes(row.peer.totalUpload)).font(Typography.body.numbers).monospacedDigit()
+                    }
+                    .width(min: 70, ideal: 90)
                 }
+                .cardTable()
             }
-            HStack {
+            TabFooter {
                 Button("Add Peer…") { model.promptAddPeer(to: torrentID) }
+                    .buttonStyle(.freshet(.secondary, size: .small))
                 Button("Clear Peer List and Bans") { model.clearPeers(of: torrentID) }
+                    .buttonStyle(.freshet(.quiet, size: .small))
                 Spacer()
                 if countries != nil {
                     Link("IP Geolocation by DB-IP", destination: URL(string: "https://db-ip.com")!)
-                        .font(.callout)
+                        .font(Typography.metadata)
+                        .foregroundStyle(Colors.textSecondary)
                 }
             }
-            .padding(6)
         }
     }
 }
@@ -266,33 +346,41 @@ struct TrackersTab: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Table(trackers) {
-                TableColumn("URL") { tracker in Text(tracker.url).lineLimit(1).truncationMode(.middle) }
-                    .width(min: 160, ideal: 300)
+                TableColumn("URL") { tracker in
+                    Text(tracker.url).font(Typography.callout.monospaced()).lineLimit(1).truncationMode(.middle)
+                }
+                .width(min: 160, ideal: 300)
                 TableColumn("Status") { tracker in
                     if tracker.status == .error {
-                        Label(tracker.statusTitle, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Palette.error)
+                        Label(tracker.statusTitle, systemImage: "exclamationmark.triangle.fill")
+                            .foregroundStyle(Colors.statusDangerText)
                     } else {
-                        Text(tracker.statusTitle)
+                        Text(tracker.statusTitle).foregroundStyle(Colors.textSecondary)
                     }
                 }
                 .width(min: 100, ideal: 200)
-                TableColumn("Seeds") { tracker in Text(tracker.seeds >= 0 ? "\(tracker.seeds)" : "").monospacedDigit() }
+                TableColumn("Seeds") { tracker in number(tracker.seeds >= 0 ? "\(tracker.seeds)" : "") }
                     .width(min: 40, ideal: 60)
-                TableColumn("Peers") { tracker in Text(tracker.peers >= 0 ? "\(tracker.peers)" : "").monospacedDigit() }
+                TableColumn("Peers") { tracker in number(tracker.peers >= 0 ? "\(tracker.peers)" : "") }
                     .width(min: 40, ideal: 60)
-                TableColumn("Downloaded") { tracker in Text(tracker.downloaded >= 0 ? "\(tracker.downloaded)" : "").monospacedDigit() }
+                TableColumn("Downloaded") { tracker in number(tracker.downloaded >= 0 ? "\(tracker.downloaded)" : "") }
                     .width(min: 60, ideal: 80)
                 TableColumn("Update In") { tracker in
-                    Text(tracker.nextAnnounce >= 0 ? Format.duration(TimeInterval(tracker.nextAnnounce)) : "").monospacedDigit()
+                    number(tracker.nextAnnounce >= 0 ? Format.duration(TimeInterval(tracker.nextAnnounce)) : "")
                 }
                 .width(min: 60, ideal: 80)
             }
-            HStack {
+            .cardTable()
+            TabFooter {
                 Spacer()
                 Button("Update Tracker") { model.perform(.reannounce, ids: [torrentID]) }
+                    .buttonStyle(.freshet(.secondary, size: .small))
             }
-            .padding(6)
         }
+    }
+
+    private func number(_ text: String) -> some View {
+        Text(text).font(Typography.body.numbers).monospacedDigit()
     }
 }
 
@@ -308,13 +396,9 @@ struct SpeedTab: View {
 
     var body: some View {
         let samples = scope == .all ? model.globalHistory.samples : model.focusedHistory.samples
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: Spacing.small) {
             HStack {
-                Picker("Show", selection: $scope) {
-                    ForEach(Scope.allCases) { scope in Text(scope.rawValue).tag(scope) }
-                }
-                .pickerStyle(.segmented)
-                .fixedSize()
+                ChipTabs(tabs: Scope.allCases, selection: $scope) { $0.rawValue }
                 Spacer()
                 TransferLegend(kind: .line)
             }
@@ -337,20 +421,21 @@ struct SpeedTab: View {
             .chartLegend(.hidden)
             .chartYAxis {
                 AxisMarks(position: .leading) { value in
-                    AxisGridLine()
+                    AxisGridLine().foregroundStyle(Colors.borderStrong)
                     AxisValueLabel {
-                        if let speed = value.as(Int.self) { Text(Format.rateOrZero(speed)) }
+                        if let speed = value.as(Int.self) { Text(Format.rateOrZero(speed)).font(Typography.metadata.numbers) }
                     }
                 }
             }
             .chartXAxis {
                 AxisMarks(values: .automatic(desiredCount: 6)) { _ in
-                    AxisGridLine()
+                    AxisGridLine().foregroundStyle(Colors.borderSubtle)
                     AxisValueLabel(format: .dateTime.hour().minute().second())
+                        .font(Typography.metadata.numbers.font)
                 }
             }
         }
-        .padding(10)
+        .padding(Spacing.small)
     }
 }
 
@@ -363,20 +448,25 @@ struct LoggerTab: View {
         let entries = model.logs.reversed().filter { !onlySelected || $0.torrentID == focused }
         VStack(spacing: 0) {
             Table(entries) {
-                TableColumn("Time") { entry in Text(entry.date, format: .dateTime.hour().minute().second()).monospacedDigit() }
-                    .width(min: 70, ideal: 80, max: 100)
+                TableColumn("Time") { entry in
+                    Text(entry.date, format: .dateTime.hour().minute().second())
+                        .font(Typography.callout.numbers)
+                        .monospacedDigit()
+                        .foregroundStyle(Colors.textSecondary)
+                }
+                .width(min: 70, ideal: 80, max: 100)
                 TableColumn("Torrent") { entry in
                     Text(entry.torrentID.flatMap { model.torrents[$0]?.displayName } ?? "")
                         .lineLimit(1).truncationMode(.middle)
                 }
                 .width(min: 100, ideal: 180)
                 TableColumn("Message") { entry in
-                    HStack(alignment: .firstTextBaseline, spacing: 5) {
+                    HStack(alignment: .firstTextBaseline, spacing: Spacing.xxSmallPlus) {
                         switch entry.level {
                         case .error:
-                            Image(systemName: "xmark.octagon.fill").foregroundStyle(Palette.error).accessibilityLabel("Error")
+                            Image(systemName: "xmark.octagon.fill").foregroundStyle(Colors.statusDangerText).accessibilityLabel("Error")
                         case .warning:
-                            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Palette.warning).accessibilityLabel("Warning")
+                            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Colors.statusCheckText).accessibilityLabel("Warning")
                         default:
                             EmptyView()
                         }
@@ -386,43 +476,47 @@ struct LoggerTab: View {
                     }
                 }
             }
-            HStack {
+            .cardTable()
+            TabFooter {
                 Toggle("Selected torrent only", isOn: $onlySelected)
+                    .toggleStyle(CheckboxStyle())
+                    .font(Typography.callout)
                 Spacer()
                 Button("Clear") { model.clearLogs() }
+                    .buttonStyle(.freshet(.secondary, size: .small))
             }
-            .padding(6)
         }
     }
 }
 
-/// Download and upload differ by line pattern and shade as well as color, so the charts read
-/// without telling blue from green.
+/// Download and upload differ by line pattern as well as color — blue for what arrives,
+/// green for what's sent — so the charts read without telling the colors apart.
 enum TransferStyle {
-    static let download = Color.blue
-    static let upload = Color.green
+    static let download = Colors.Chart.blue
+    static let upload = Colors.Chart.green
     static let downloadStroke = StrokeStyle(lineWidth: 2)
     static let uploadStroke = StrokeStyle(lineWidth: 2, dash: [5, 3])
 }
 
-/// A legend that shows the line pattern (or bar shade) next to each name.
+/// A legend that shows the line pattern (or bar color) next to each name.
 struct TransferLegend: View {
     enum Kind { case line, bar }
     let kind: Kind
 
     var body: some View {
-        HStack(spacing: 14) {
-            entry("Download", color: TransferStyle.download, stroke: TransferStyle.downloadStroke, opacity: 1)
-            entry("Upload", color: kind == .bar ? TransferStyle.download : TransferStyle.upload,
-                  stroke: TransferStyle.uploadStroke, opacity: kind == .bar ? 0.4 : 1)
+        HStack(spacing: Spacing.small) {
+            entry("Download", color: TransferStyle.download, stroke: TransferStyle.downloadStroke)
+            entry("Upload", color: TransferStyle.upload, stroke: TransferStyle.uploadStroke)
         }
-        .font(.callout)
+        .font(Typography.metadata)
+        .foregroundStyle(Colors.textSecondary)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(kind == .line ? "Download is a solid line, upload is dashed" : "Download is the dark bar, upload the light bar")
+        .accessibilityLabel(kind == .line ? "Download is a solid blue line, upload a dashed green line"
+                                          : "Download bars are blue, upload bars green")
     }
 
-    private func entry(_ title: String, color: Color, stroke: StrokeStyle, opacity: Double) -> some View {
-        HStack(spacing: 5) {
+    private func entry(_ title: String, color: Color, stroke: StrokeStyle) -> some View {
+        HStack(spacing: Spacing.xxSmallPlus) {
             switch kind {
             case .line:
                 Path { path in
@@ -432,7 +526,7 @@ struct TransferLegend: View {
                 .stroke(color, style: stroke)
                 .frame(width: 22, height: 10)
             case .bar:
-                RoundedRectangle(cornerRadius: 2).fill(color.opacity(opacity)).frame(width: 12, height: 12)
+                RoundedRectangle(cornerRadius: 2, style: .continuous).fill(color).frame(width: 10, height: 10)
             }
             Text(title)
         }

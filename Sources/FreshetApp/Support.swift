@@ -29,6 +29,9 @@ enum AppPaths {
     /// The licences of the code and data Freshet includes; opened from Help › Third-Party Notices.
     static var thirdPartyNotices: URL? { resource("THIRD_PARTY_NOTICES", withExtension: "txt") }
 
+    /// The Onest typeface the interface is set in (SIL Open Font License).
+    static var onestFont: URL? { resource("Onest", withExtension: "ttf") }
+
     private static func resource(_ name: String, withExtension ext: String) -> URL? {
         if let url = Bundle.main.url(forResource: name, withExtension: ext) { return url }
         let executable = URL(fileURLWithPath: CommandLine.arguments[0]).resolvingSymlinksInPath().deletingLastPathComponent()

@@ -21,27 +21,37 @@ struct FreshetMain: App {
         .defaultSize(width: 1_200, height: 780)
         .commands { FreshetCommands(model: appDelegate.model) }
 
+        // Every window shares the main window's chrome: no title bar, the sidebar or page
+        // running up under the window buttons.
         Window("RSS Downloader", id: "rss") {
             RSSWindow()
                 .environment(appDelegate.model)
         }
-        .defaultSize(width: 980, height: 620)
+        .windowStyle(.hiddenTitleBar)
+        .defaultSize(width: 1_000, height: 640)
 
         Window("New Torrent", id: "create") {
             CreateTorrentView()
                 .environment(appDelegate.model)
         }
-        .defaultSize(width: 560, height: 640)
+        .windowStyle(.hiddenTitleBar)
+        .defaultSize(width: 620, height: 760)
 
         Window("Freshet Help", id: "help") {
             HelpView()
         }
-        .defaultSize(width: 860, height: 600)
+        .windowStyle(.hiddenTitleBar)
+        .defaultSize(width: 880, height: 620)
 
-        Settings {
+        // A window rather than the Settings scene, so it can have the same sidebar and chrome
+        // as the others; Freshet › Settings… (⌘,) opens it.
+        Window("Settings", id: settingsWindowID) {
             PreferencesView()
                 .environment(appDelegate.model)
         }
+        .windowStyle(.hiddenTitleBar)
+        .defaultSize(width: 900, height: 660)
+        .defaultPosition(.center)
 
         MenuBarExtra {
             MenuBarContent()
@@ -59,6 +69,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     override init() {
         model = AppModel(simulate: CommandLine.arguments.contains("--simulate"))
         super.init()
+        AppFont.register()
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {

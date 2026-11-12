@@ -24,64 +24,105 @@ struct CreateTorrentView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Form {
-                Section("Source") {
-                    LabeledContent("Files") {
-                        HStack {
-                            Text(source.map { ($0.path as NSString).abbreviatingWithTildeInPath } ?? "Nothing chosen")
-                                .foregroundStyle(source == nil ? .secondary : .primary)
-                                .lineLimit(1)
-                                .truncationMode(.middle)
-                            Button("Add File…") { choose(directories: false) }
-                            Button("Add Folder…") { choose(directories: true) }
+            WindowHeader(title: "New Torrent", subtitle: "Make a .torrent from a file or folder to share it",
+                         clearsWindowButtons: true) { EmptyView() }
+            ScrollView {
+                VStack(alignment: .leading, spacing: Spacing.large) {
+                    FormGroup(title: "Source") {
+                        HStack(spacing: Spacing.medium) {
+                            VStack(alignment: .leading, spacing: Spacing.xxxSmall) {
+                                Text("Files")
+                                Text(source.map { ($0.path as NSString).abbreviatingWithTildeInPath } ?? "Nothing chosen yet")
+                                    .font(Typography.callout)
+                                    .foregroundStyle(source == nil ? Colors.textTertiary : Colors.textSecondary)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .accessibilityElement(children: .combine)
+                            Button("Choose File…") { choose(directories: false) }
+                                .buttonStyle(.freshet(.secondary, size: .small))
+                            Button("Choose Folder…") { choose(directories: true) }
+                                .buttonStyle(.freshet(.secondary, size: .small))
+                        }
+                        .formRowPadding()
+                        FormDivider()
+                        FormRow("Skip files", caption: "Separate patterns with semicolons.") {
+                            TextInput("Skip files", text: $skipPatterns, prompt: "e.g. *.nfo;Thumbs.db", width: 220, monospaced: true)
                         }
                     }
-                    TextField("Skip files", text: $skipPatterns, prompt: Text("e.g. *.nfo;Thumbs.db"))
-                }
-                Section("Properties") {
-                    VStack(alignment: .leading) {
-                        Text("Trackers")
-                        TextEditor(text: $trackers).font(.system(.body, design: .monospaced)).frame(height: 70)
-                        Text("One per line; a blank line starts the next tier.").font(.callout).foregroundStyle(.secondary)
-                    }
-                    VStack(alignment: .leading) {
-                        Text("Web seeds")
-                        TextEditor(text: $webSeeds).font(.system(.body, design: .monospaced)).frame(height: 40)
-                    }
-                    TextField("Comment", text: $comment)
-                    Picker("Piece size", selection: $pieceSize) {
-                        ForEach(Self.pieceSizes, id: \.self) { size in
-                            Text(size == 0 ? "Automatic" : Format.bytes(Int64(size))).tag(size)
+                    FormGroup(title: "Trackers and web seeds") {
+                        FormStackRow("Trackers", note: "One per line; a blank line starts the next tier.") {
+                            TextEditor(text: $trackers)
+                                .modifier(EditorChrome(height: 84))
+                                .accessibilityLabel("Trackers")
+                        }
+                        FormDivider()
+                        FormStackRow("Web seeds", note: "Optional. HTTP addresses that also serve the files.") {
+                            TextEditor(text: $webSeeds)
+                                .modifier(EditorChrome(height: 52))
+                                .accessibilityLabel("Web seeds")
+                        }
+                        FormDivider()
+                        FormRow("Comment") {
+                            TextInput("Comment", text: $comment, prompt: "Optional", width: 260)
                         }
                     }
-                    Picker("Format", selection: $format) {
-                        ForEach(TorrentFormat.allCases, id: \.self) { format in Text(format.title).tag(format) }
+                    FormGroup(title: "Options") {
+                        FormRow("Piece size", caption: "Automatic picks a size that suits the files.") {
+                            ValuePicker("Piece size", selection: $pieceSize, options: Self.pieceSizes, minWidth: 100) { size in
+                                size == 0 ? "Automatic" : Format.bytes(Int64(size))
+                            }
+                        }
+                        FormDivider()
+                        FormRow("Format") {
+                            ValuePicker("Format", selection: $format, options: TorrentFormat.allCases, minWidth: 100) { $0.title }
+                        }
+                        FormDivider()
+                        SwitchRow("Private torrent", caption: "Peers come only from its trackers: no DHT or peer exchange.",
+                                  isOn: $isPrivate)
+                        FormDivider()
+                        SwitchRow("Start seeding", caption: "Add it to Freshet and share it right away.", isOn: $startSeeding)
                     }
-                    Toggle("Private torrent (no DHT or peer exchange)", isOn: $isPrivate)
-                    Toggle("Start seeding", isOn: $startSeeding)
                 }
+                .padding(.horizontal, PageLayout.horizontalInset)
+                .padding(.top, Spacing.xxSmall)
+                .padding(.bottom, Spacing.large)
             }
-            .formStyle(.grouped)
             .disabled(progress != nil)
-            HStack {
+            CardDivider(inset: 0)
+            HStack(spacing: Spacing.small) {
                 if progress != nil {
-                    ProgressView(value: fraction).frame(width: 220)
-                    Text(Format.percent(fraction)).monospacedDigit()
+                    ProgressTrack(value: fraction, color: Colors.State.downloading, height: 6)
+                        .frame(width: 200)
+                    Text("Hashing \(Format.percent(fraction))")
+                        .font(Typography.callout.numbers)
+                        .monospacedDigit()
+                        .foregroundStyle(Colors.textSecondary)
                 } else if let message {
-                    Text(message).foregroundStyle(.secondary).lineLimit(2)
+                    Text(message)
+                        .font(Typography.callout)
+                        .foregroundStyle(Colors.textSecondary)
+                        .lineLimit(2)
                 }
                 Spacer()
                 if let progress {
                     Button("Cancel") { progress.cancel() }
+                        .buttonStyle(.freshet(.secondary))
                 } else {
                     Button("Create and Save As…") { create() }
+                        .buttonStyle(.freshet(.primary))
                         .keyboardShortcut(.defaultAction)
                         .disabled(source == nil)
                 }
             }
-            .padding(14)
+            .padding(.horizontal, PageLayout.horizontalInset)
+            .padding(.vertical, Spacing.small)
         }
-        .frame(minWidth: 520, idealWidth: 560, minHeight: 520, idealHeight: 640)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .ignoresSafeArea(.container, edges: .top)
+        .frame(minWidth: 560, minHeight: 520)
+        .themedWindow()
     }
 
     private func choose(directories: Bool) {

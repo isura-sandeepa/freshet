@@ -24,44 +24,52 @@ struct SetupGuideView: View {
 
     var body: some View {
         @Bindable var settings = model.settings
-        VStack(alignment: .leading, spacing: 0) {
-            Text("Setup Guide").font(.title2.bold()).padding([.top, .horizontal], 20)
-            Form {
-                Section("1. Downloads") {
-                    FolderField(title: "Save new torrents to", path: $settings.downloadFolder)
+        SheetLayout(title: "Setup Guide", message: "Three things that help Freshet work well on this Mac. You can change them later in Settings.",
+                    width: 580) {
+            VStack(alignment: .leading, spacing: Spacing.large) {
+                FormGroup(title: "1. Downloads") {
+                    FolderRow(title: "Save new torrents to", path: $settings.downloadFolder)
                 }
-                Section("2. Your upload speed") {
-                    Picker("Upload speed of your connection", selection: $uploadMbps) {
-                        ForEach(Self.speeds.indices, id: \.self) { index in Text(Self.speeds[index].title).tag(index) }
+                FormGroup(title: "2. Your upload speed", footer: speedAdvice) {
+                    FormRow("Upload speed of your connection") {
+                        ValuePicker("Upload speed of your connection", selection: $uploadMbps, options: Array(Self.speeds.indices)) {
+                            Self.speeds[$0].title
+                        }
                     }
-                    Text(speedAdvice).font(.callout).foregroundStyle(.secondary)
                 }
-                Section("3. Can peers reach you?") {
-                    HStack {
-                        TextField("Listening port", value: $settings.listenPort, format: .number.grouping(.never))
-                        Button("Random Port") { settings.listenPort = AppSettings.randomPort() }
+                FormGroup(title: "3. Can peers reach you?") {
+                    FormRow("Listening port") {
+                        HStack(spacing: Spacing.xSmall) {
+                            NumberInput("Listening port", value: $settings.listenPort, range: 1...65_535, width: 80)
+                            Button("Random Port") { settings.listenPort = AppSettings.randomPort() }
+                                .buttonStyle(.freshet(.secondary, size: .small))
+                        }
                     }
-                    Toggle("Ask the router to forward the port (UPnP and NAT-PMP)", isOn: Binding(
+                    FormDivider()
+                    SwitchRow("Ask the router to forward the port", caption: "Uses UPnP and NAT-PMP.", isOn: Binding(
                         get: { settings.enableUPnP || settings.enableNATPMP },
                         set: { settings.enableUPnP = $0; settings.enableNATPMP = $0 }))
-                    status("Listening on port \(String(model.session.listenPort))", ok: model.session.isListening,
-                           pending: "Not listening yet")
-                    status("Router forwarded external port \(String(model.session.externalPort))", ok: model.session.portMapped,
-                           pending: "The router hasn't confirmed a port mapping (normal if UPnP is off or unsupported)")
-                    status("\(model.session.incomingConnections) peers connected in", ok: model.session.incomingConnections > 0,
-                           pending: "No peer has connected in yet — this only shows once a torrent is running")
+                    FormDivider()
+                    VStack(alignment: .leading, spacing: Spacing.xSmall) {
+                        status("Listening on port \(String(model.session.listenPort))", ok: model.session.isListening,
+                               pending: "Not listening yet")
+                        status("Router forwarded external port \(String(model.session.externalPort))", ok: model.session.portMapped,
+                               pending: "The router hasn't confirmed a port mapping (normal if UPnP is off or unsupported)")
+                        status("\(model.session.incomingConnections) peers connected in", ok: model.session.incomingConnections > 0,
+                               pending: "No peer has connected in yet — this only shows once a torrent is running")
+                    }
+                    .padding(.horizontal, Spacing.medium)
+                    .padding(.vertical, Spacing.small)
                 }
             }
-            .formStyle(.grouped)
-            HStack {
-                Spacer()
-                Button("Skip") { finish(apply: false) }
-                Button("Done") { finish(apply: true) }
-                    .keyboardShortcut(.defaultAction)
-            }
-            .padding(14)
+        } actions: {
+            Button("Skip") { finish(apply: false) }
+                .buttonStyle(.freshet(.secondary))
+                .keyboardShortcut(.cancelAction)
+            Button("Done") { finish(apply: true) }
+                .buttonStyle(.freshet(.primary))
+                .keyboardShortcut(.defaultAction)
         }
-        .frame(minWidth: 520, idealWidth: 560, minHeight: 480, idealHeight: 600)
     }
 
     private var speedAdvice: String {
@@ -88,8 +96,16 @@ struct SetupGuideView: View {
     }
 
     private func status(_ text: String, ok: Bool, pending: String) -> some View {
-        Label(ok ? text : pending, systemImage: ok ? "checkmark.circle.fill" : "circle.dashed")
-            .foregroundStyle(ok ? Palette.success : .secondary)
+        HStack(alignment: .firstTextBaseline, spacing: Spacing.xSmall) {
+            Image(systemName: ok ? "checkmark.circle.fill" : "circle.dashed")
+                .foregroundStyle(ok ? Colors.statusSafeText : Colors.textTertiary)
+                .accessibilityLabel(ok ? "Done" : "Not yet")
+            Text(ok ? text : pending)
+                .font(Typography.callout)
+                .foregroundStyle(ok ? Colors.textPrimary : Colors.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .accessibilityElement(children: .combine)
     }
 
     private func finish(apply: Bool) {

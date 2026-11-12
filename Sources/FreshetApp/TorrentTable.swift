@@ -15,9 +15,13 @@ struct TorrentListView: View {
                      onDoubleClick: { model.reveal($0) })
             .overlay {
                 if model.torrents.isEmpty {
-                    ContentUnavailableView("No Torrents",
-                                           systemImage: "arrow.down.circle",
-                                           description: Text("Drop .torrent files here, or use Add Torrent (⌘O) or Add from URL (⌘U)."))
+                    EmptyStateView(symbol: "arrow.down.circle", title: "No torrents yet",
+                                   message: "Drop .torrent files here, or add a torrent or a magnet link.") {
+                        Button("Add from URL…") { model.showAddURL = true }
+                            .buttonStyle(.freshet(.secondary))
+                        Button("Add Torrent…") { model.openTorrentFiles() }
+                            .buttonStyle(.freshet(.primary))
+                    }
                 }
             }
     }
@@ -139,11 +143,11 @@ struct TorrentTable: NSViewRepresentable {
             let torrent = rows[row]
             if field == .done {
                 let cell = tableView.makeView(withIdentifier: ProgressCellView.identifier, owner: nil) as? ProgressCellView ?? ProgressCellView()
-                cell.update(progress: torrent.progress, color: Self.color(for: torrent.activity), activity: torrent.activity, status: torrent.statusText)
+                cell.update(progress: torrent.progress, color: Self.color(for: torrent), activity: torrent.activity, status: torrent.statusText)
                 return cell
             }
             let cell = tableView.makeView(withIdentifier: TextCellView.identifier, owner: nil) as? TextCellView ?? TextCellView()
-            let color: NSColor = field == .status && torrent.activity == .error ? .systemRed : .labelColor
+            let color = NSColor(field == .status && torrent.activity == .error ? Colors.statusDangerText : Colors.textPrimary)
             cell.update(text: field.text(for: torrent, label: labels[torrent.id]), alignment: field.alignment,
                         monospacedDigits: field.isNumeric, color: color)
             return cell
@@ -205,14 +209,9 @@ struct TorrentTable: NSViewRepresentable {
             column.isHidden.toggle()
         }
 
-        static func color(for activity: TorrentActivity) -> NSColor {
-            switch activity {
-            case .downloading, .downloadingMetadata: return .systemBlue
-            case .seeding, .finished: return .systemGreen
-            case .checking: return .systemOrange
-            case .error: return .systemRed
-            case .queued, .queuedSeed, .paused: return .systemGray
-            }
+        /// The same state colors as the cards and the overview bar.
+        static func color(for torrent: TorrentSnapshot) -> NSColor {
+            NSColor(StateStyle(torrent).color)
         }
     }
 }
@@ -259,7 +258,7 @@ final class TextCellView: NSTableCellView {
         label.alignment = alignment
         label.textColor = color
         label.font = monospacedDigits ? .monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
-                                      : .systemFont(ofSize: NSFont.systemFontSize)
+                                      : AppFont.nsOnest(size: NSFont.systemFontSize)
         label.toolTip = text.count > 30 ? text : nil
     }
 }
@@ -297,7 +296,7 @@ final class ProgressCellView: NSTableCellView {
 /// Errors and checking also change the text on the bar, so the state doesn't rest on color.
 final class ProgressBarView: NSView {
     var progress: Double = 0 { didSet { if progress != oldValue { needsDisplay = true } } }
-    var color: NSColor = .systemBlue { didSet { if color != oldValue { needsDisplay = true } } }
+    var color = NSColor(Colors.State.downloading) { didSet { if color != oldValue { needsDisplay = true } } }
     var activity: TorrentActivity = .paused { didSet { if activity != oldValue { needsDisplay = true } } }
     var status = ""
 
@@ -320,28 +319,50 @@ final class ProgressBarView: NSView {
     override func draw(_ dirtyRect: NSRect) {
         let rect = bounds.insetBy(dx: 0.5, dy: 0.5)
         let track = NSBezierPath(roundedRect: rect, xRadius: 4, yRadius: 4)
-        NSColor.quaternaryLabelColor.setFill()
+        NSColor(Colors.textPrimary).withAlphaComponent(0.12).setFill()
         track.fill()
         let fraction = CGFloat(min(max(progress, 0), 1))
+        var fillWidth: CGFloat = 0
         if fraction > 0 {
             var fill = rect
             fill.size.width = max(rect.height, rect.width * fraction)
+            fillWidth = fill.size.width
             let highContrast = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
-            color.withAlphaComponent(highContrast ? 1 : 0.85).setFill()
+            color.setFill()
             NSBezierPath(roundedRect: fill, xRadius: 4, yRadius: 4).fill()
             if highContrast {
-                NSColor.labelColor.withAlphaComponent(0.6).setStroke()
+                NSColor(Colors.textPrimary).withAlphaComponent(0.6).setStroke()
                 track.lineWidth = 1
                 track.stroke()
             }
         }
+        // The caption is drawn twice, each copy clipped to its side of the fill's edge: the
+        // track's ink over the empty part, and whichever ink reads on the fill's color over
+        // the filled part, so it stays legible where it straddles the edge.
         let text = caption as NSString
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .semibold),
-            .foregroundColor: NSColor.labelColor,
+        let font = NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .semibold)
+        let size = text.size(withAttributes: [.font: font])
+        let origin = NSPoint(x: rect.midX - size.width / 2, y: rect.midY - size.height / 2)
+        let edge = rect.minX + fillWidth
+        let sides: [(NSRect, NSColor)] = [
+            (NSRect(x: edge, y: bounds.minY, width: max(0, bounds.maxX - edge), height: bounds.height), NSColor(Colors.textPrimary)),
+            (NSRect(x: bounds.minX, y: bounds.minY, width: max(0, edge - bounds.minX), height: bounds.height), Self.ink(on: color)),
         ]
-        let size = text.size(withAttributes: attributes)
-        text.draw(at: NSPoint(x: rect.midX - size.width / 2, y: rect.midY - size.height / 2), withAttributes: attributes)
+        for (clip, ink) in sides where clip.width > 0 {
+            NSGraphicsContext.saveGraphicsState()
+            NSBezierPath(rect: clip).addClip()
+            text.draw(at: origin, withAttributes: [.font: font, .foregroundColor: ink])
+            NSGraphicsContext.restoreGraphicsState()
+        }
+    }
+
+    /// Whichever of dark ink or white contrasts more with the fill (they tie at a relative
+    /// luminance of about 0.2).
+    private static func ink(on fill: NSColor) -> NSColor {
+        guard let rgb = fill.usingColorSpace(.sRGB) else { return .white }
+        func linear(_ c: CGFloat) -> CGFloat { c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4) }
+        let luminance = 0.2126 * linear(rgb.redComponent) + 0.7152 * linear(rgb.greenComponent) + 0.0722 * linear(rgb.blueComponent)
+        return luminance > 0.2 ? NSColor(srgbRed: 0x17 / 255, green: 0x16 / 255, blue: 0x15 / 255, alpha: 1) : .white
     }
 }
 

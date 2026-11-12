@@ -20,9 +20,19 @@ struct NoticeBanner<Actions: View>: View {
 
         var tint: Color {
             switch self {
-            case .error: return Palette.error
-            case .warning: return Palette.warning
-            case .info: return Palette.info
+            case .error: return Colors.statusDangerText
+            case .warning: return Colors.statusCheckText
+            case .info: return Colors.statusNeutralText
+            }
+        }
+
+        var text: Color { tint }
+
+        var fill: Color {
+            switch self {
+            case .error: return Colors.statusDangerFill
+            case .warning: return Colors.statusCheckFill
+            case .info: return Colors.statusNeutralFill
             }
         }
 
@@ -43,30 +53,36 @@ struct NoticeBanner<Actions: View>: View {
     @Environment(\.colorSchemeContrast) private var contrast
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(alignment: .center, spacing: Spacing.small) {
             Image(systemName: kind.symbol)
-                .font(.title3)
-                .foregroundStyle(kind.tint)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(kind.text)
                 .accessibilityLabel(kind.spokenName)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).fontWeight(.semibold)
-                if let detail { Text(detail).foregroundStyle(.secondary) }
+            VStack(alignment: .leading, spacing: Spacing.xxxSmall) {
+                Text(title).font(Typography.headline)
+                if let detail {
+                    Text(detail).font(Typography.callout).foregroundStyle(Colors.textSecondary)
+                }
             }
             .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 8)
+            Spacer(minLength: Spacing.xSmall)
             actions()
+                .buttonStyle(.freshet(.secondary, size: .small))
             if let onClose {
                 Button(action: onClose) {
-                    Label("Dismiss", systemImage: "xmark").labelStyle(.iconOnly)
+                    Label("Dismiss", systemImage: "xmark")
                 }
-                .buttonStyle(.borderless)
+                .buttonStyle(.freshet(.quiet, size: .small, width: .square))
                 .help("Dismiss")
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(kind.tint.opacity(Palette.fillOpacity(contrast, standard: 0.12)))
-        .overlay(alignment: .bottom) { Divider() }
+        .padding(.horizontal, Spacing.medium)
+        .padding(.vertical, Spacing.small)
+        .background(kind.fill, in: RoundedRectangle(cornerRadius: Radius.lg, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: Radius.lg, style: .continuous)
+                .strokeBorder(kind.text.opacity(contrast == .increased ? 0.6 : 0.22), lineWidth: 0.5)
+        }
         .accessibilityElement(children: .contain)
     }
 }
@@ -80,11 +96,11 @@ extension NoticeBanner where Actions == EmptyView {
 /// Every banner the main window can show, most urgent first.
 struct NoticeArea: View {
     @Environment(AppModel.self) private var model
-    @Environment(\.openSettings) private var openSettings
+    @Environment(\.openWindow) private var openWindow
     @AppStorage(SettingsPane.storageKey) private var pane: SettingsPane = .general
 
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: Spacing.xSmall) {
             if let countdown = model.whenDoneCountdown {
                 TimelineView(.periodic(from: .now, by: 1)) { context in
                     NoticeBanner(kind: .warning, title: "All downloads have finished",
@@ -123,6 +139,7 @@ struct NoticeArea: View {
                 }
             }
         }
+        .padding(.horizontal, PageLayout.horizontalInset)
     }
 
     private var schedulerNotice: String? {
@@ -136,7 +153,7 @@ struct NoticeArea: View {
 
     private func open(_ target: SettingsPane) {
         pane = target
-        openSettings()
+        openWindow(id: settingsWindowID)
     }
 }
 
@@ -165,32 +182,26 @@ struct TextPromptSheet: View {
     var body: some View {
         let value = text.trimmingCharacters(in: .whitespacesAndNewlines)
         let problem = value.isEmpty ? "" : prompt.validate(value)
-        VStack(alignment: .leading, spacing: 12) {
-            Text(prompt.title).font(.headline)
-            Text(prompt.message)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            TextField(prompt.title, text: $text, prompt: Text(prompt.placeholder))
-                .labelsHidden()
-                .textFieldStyle(.roundedBorder)
-                .focused($focused)
-                .onSubmit { if problem == nil { finish(value) } }
-            if let problem, !problem.isEmpty {
-                Label(problem, systemImage: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+        SheetLayout(title: prompt.title, message: prompt.message, width: 420) {
+            VStack(alignment: .leading, spacing: Spacing.xSmall) {
+                TextInput(prompt.title, text: $text, prompt: prompt.placeholder, width: nil, focus: $focused)
+                    .onSubmit { if problem == nil { finish(value) } }
+                if let problem, !problem.isEmpty {
+                    Label(problem, systemImage: "exclamationmark.triangle.fill")
+                        .font(Typography.callout)
+                        .foregroundStyle(Colors.statusCheckText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
-            HStack {
-                Spacer()
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Button(prompt.actionTitle) { finish(value) }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(problem != nil)
-            }
+        } actions: {
+            Button("Cancel") { dismiss() }
+                .buttonStyle(.freshet(.secondary))
+                .keyboardShortcut(.cancelAction)
+            Button(prompt.actionTitle) { finish(value) }
+                .buttonStyle(.freshet(.primary))
+                .keyboardShortcut(.defaultAction)
+                .disabled(problem != nil)
         }
-        .padding(20)
-        .frame(width: 400)
         .onAppear { focused = true }
     }
 
@@ -247,6 +258,21 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .transferCap: return "Transfer Cap"
         case .search: return "Search"
         case .advanced: return "Advanced"
+        }
+    }
+
+    /// The line under the pane's title.
+    var subtitle: String {
+        switch self {
+        case .general: return "Adding torrents, notifications and the default app"
+        case .folders: return "Where files go while downloading and after"
+        case .connection: return "Port, network interfaces, proxy and IP filter"
+        case .bandwidth: return "Speed limits, connections and upload slots"
+        case .bittorrent: return "Finding peers, encryption, the queue and seeding goals"
+        case .scheduler: return "A weekly plan for transfer speeds"
+        case .transferCap: return "Stop transfers after a set amount of data"
+        case .search: return "Sites to search the web for torrents"
+        case .advanced: return "Programs to run, disk use and engine settings"
         }
     }
 

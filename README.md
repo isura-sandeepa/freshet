@@ -89,6 +89,7 @@ which ships inside the app and opens from **Help › Third-Party Notices**.
 - [libtorrent](https://github.com/arvidn/libtorrent) — BSD 3-clause, see `Vendor/libtorrent/LICENSE` and `COPYING`.
 - [Boost](https://www.boost.org) headers — Boost Software License 1.0.
 - [OpenSSL](https://www.openssl.org) — Apache License 2.0.
+- [Onest](https://github.com/googlefonts/onest) typeface — SIL Open Font License 1.1.
 - IP to Country Lite database by [DB-IP](https://db-ip.com) — CC BY 4.0, see
   `Sources/FreshetApp/Resources/DBIP-LICENSE.txt`.
 

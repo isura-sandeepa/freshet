@@ -13,7 +13,7 @@ cp Scripts/Info.plist "$APP/Contents/Info.plist"
 cp Scripts/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 # Resources SwiftPM bundled for the app target (the DB-IP country database, its licence and the
 # third-party notices, which must ship with the app).
-find "$BIN_DIR/Freshet_FreshetApp.bundle" -type f \( -name 'countries.fcdb' -o -name 'DBIP-LICENSE.txt' -o -name 'THIRD_PARTY_NOTICES.txt' \) \
+find "$BIN_DIR/Freshet_FreshetApp.bundle" -type f \( -name 'countries.fcdb' -o -name 'DBIP-LICENSE.txt' -o -name 'THIRD_PARTY_NOTICES.txt' -o -name 'Onest.ttf' \) \
   -exec cp {} "$APP/Contents/Resources/" \;
 codesign --force --sign - --timestamp=none "$APP"
 echo "Built $(pwd)/$APP"

@@ -18,54 +18,77 @@ struct PropertiesSheet: View {
     @State private var goal = SeedingGoal()
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
-                Section("Trackers") {
-                    TextEditor(text: $trackersText)
-                        .font(.system(.body, design: .monospaced))
-                        .frame(height: 110)
-                    Text("One URL per line. Leave a blank line between tiers.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                }
-                Section("Bandwidth (0 = unlimited or the global default)") {
-                    NumberField(title: "Maximum download rate", value: $downloadKBps, unit: "KB/s")
-                    NumberField(title: "Maximum upload rate", value: $uploadKBps, unit: "KB/s")
-                    NumberField(title: "Maximum connected peers", value: $properties.maxConnections)
-                    NumberField(title: "Upload slots", value: $properties.maxUploads)
-                    Picker("Bandwidth allocation", selection: $priority) {
-                        ForEach(BandwidthPriority.allCases.reversed(), id: \.self) { p in Text(p.title).tag(p) }
+        SheetLayout(title: model.torrents[id]?.displayName ?? "Properties",
+                    message: "Trackers, limits and options for this torrent.", width: 580) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: Spacing.large) {
+                    FormGroup(title: "Trackers", footer: "One URL per line. Leave a blank line between tiers.") {
+                        TextEditor(text: $trackersText)
+                            .modifier(EditorChrome(height: 110))
+                            .accessibilityLabel("Trackers")
+                            .padding(Spacing.small)
                     }
-                }
-                Section("Seeding goal") {
-                    Toggle("Use its own seeding goal", isOn: $overrideGoal)
-                    if overrideGoal {
-                        NumberField(title: "Seed while the ratio is under", value: $goal.ratioPercent, unit: "%")
-                        NumberField(title: "Seed for at least", value: $goal.minutes, unit: "minutes")
+                    FormGroup(title: "Bandwidth", footer: "0 means unlimited, or the global default for peers and slots.") {
+                        FormRow("Maximum download rate") {
+                            NumberInput("Maximum download rate", value: $downloadKBps, unit: "KB/s")
+                        }
+                        FormDivider()
+                        FormRow("Maximum upload rate") {
+                            NumberInput("Maximum upload rate", value: $uploadKBps, unit: "KB/s")
+                        }
+                        FormDivider()
+                        FormRow("Maximum connected peers") {
+                            NumberInput("Maximum connected peers", value: $properties.maxConnections)
+                        }
+                        FormDivider()
+                        FormRow("Upload slots") {
+                            NumberInput("Upload slots", value: $properties.maxUploads)
+                        }
+                        FormDivider()
+                        FormRow("Bandwidth allocation", caption: "How this torrent shares the global limits with the others.") {
+                            ValuePicker("Bandwidth allocation", selection: $priority,
+                                        options: Array(BandwidthPriority.allCases.reversed()), minWidth: 100) { $0.title }
+                        }
                     }
-                }
-                Section("Options") {
-                    Toggle("DHT", isOn: inverted(\.disableDHT))
-                    Toggle("Peer exchange", isOn: inverted(\.disablePEX))
-                    Toggle("Find peers on the local network", isOn: inverted(\.disableLSD))
-                    Toggle("Initial seeding (super-seeding)", isOn: $properties.superSeeding)
-                    Toggle("Download pieces in order", isOn: $properties.sequential)
+                    FormGroup(title: "Seeding goal") {
+                        SwitchRow("Use its own seeding goal", caption: "Otherwise it follows the goal in Settings › BitTorrent.",
+                                  isOn: $overrideGoal)
+                        if overrideGoal {
+                            FormDivider()
+                            FormRow("Seed while the ratio is under") {
+                                NumberInput("Seed while the ratio is under", value: $goal.ratioPercent, unit: "%")
+                            }
+                            FormDivider()
+                            FormRow("Seed for at least") {
+                                NumberInput("Seed for at least", value: $goal.minutes, unit: "minutes")
+                            }
+                        }
+                    }
+                    FormGroup(title: "Options") {
+                        SwitchRow("DHT", caption: "Find peers without a tracker.", isOn: inverted(\.disableDHT))
+                        FormDivider()
+                        SwitchRow("Peer exchange", caption: "Learn about peers from connected peers.", isOn: inverted(\.disablePEX))
+                        FormDivider()
+                        SwitchRow("Find peers on the local network", isOn: inverted(\.disableLSD))
+                        FormDivider()
+                        SwitchRow("Initial seeding (super-seeding)", caption: "Helps a new torrent spread when you're its only seed.",
+                                  isOn: $properties.superSeeding)
+                        FormDivider()
+                        SwitchRow("Download pieces in order", caption: "Useful for previewing; usually slower.", isOn: $properties.sequential)
+                    }
                 }
             }
-            .formStyle(.grouped)
+            .frame(height: 440)
             .disabled(!loaded)
-            HStack {
-                Spacer()
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Button("OK") { save() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!loaded)
-            }
-            .padding(14)
+        } actions: {
+            Button("Cancel") { dismiss() }
+                .buttonStyle(.freshet(.secondary))
+                .keyboardShortcut(.cancelAction)
+            Button("Save") { save() }
+                .buttonStyle(.freshet(.primary))
+                .keyboardShortcut(.defaultAction)
+                .disabled(!loaded)
         }
-        .frame(minWidth: 500, idealWidth: 520, minHeight: 480, idealHeight: 640)
-        .navigationTitle(model.torrents[id]?.displayName ?? "Properties")
         .task { await load() }
     }
 

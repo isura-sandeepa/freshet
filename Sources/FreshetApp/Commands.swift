@@ -6,8 +6,15 @@ struct FreshetCommands: Commands {
     let model: AppModel
     @Environment(\.openWindow) private var openWindow
     @AppStorage(TorrentListStyle.storageKey) private var listStyle: TorrentListStyle = .cards
+    @AppStorage("sidebarHidden") private var sidebarHidden = false
+    /// The sidebar of whichever window is in front.
+    @FocusedBinding(\.sidebarHidden) private var focusedSidebarHidden: Bool?
 
     var body: some Commands {
+        CommandGroup(replacing: .appSettings) {
+            Button("Settings…") { openWindow(id: settingsWindowID) }
+                .keyboardShortcut(",")
+        }
         CommandGroup(replacing: .newItem) {
             Button("Add Torrent…") { model.openTorrentFiles() }
                 .keyboardShortcut("o")
@@ -76,8 +83,16 @@ struct FreshetCommands: Commands {
                 if let url = AppPaths.thirdPartyNotices { NSWorkspace.shared.open(url) }
             }
         }
-        SidebarCommands()
         CommandGroup(after: .sidebar) {
+            let hidden = focusedSidebarHidden ?? sidebarHidden
+            Button(hidden ? "Show Sidebar" : "Hide Sidebar") {
+                if let current = focusedSidebarHidden {
+                    focusedSidebarHidden = !current
+                } else {
+                    sidebarHidden.toggle()
+                }
+            }
+            .keyboardShortcut("s", modifiers: [.command, .control])
             Button(model.showInspector ? "Hide Details" : "Show Details") { model.showInspector.toggle() }
                 .keyboardShortcut("i", modifiers: [.command, .option])
             Divider()

@@ -2,39 +2,74 @@ import SwiftUI
 
 /// Freshet Help: short task-based topics, opened from the Help menu.
 struct HelpView: View {
-    @State private var topic: HelpTopic? = .gettingStarted
+    @State private var topic: HelpTopic = .gettingStarted
     @State private var query = ""
+    @State private var focusSearch = false
+    @AppStorage("helpSidebarHidden") private var sidebarHidden = false
 
     var body: some View {
-        NavigationSplitView {
-            List(matches, selection: $topic) { topic in
-                Label(topic.title, systemImage: topic.systemImage).tag(topic)
-            }
-            .navigationSplitViewColumnWidth(min: 230, ideal: 250)
-            .searchable(text: $query, placement: .sidebar, prompt: "Search Help")
-        } detail: {
-            if let topic {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 14) {
-                        Text(topic.title).font(.title2.bold())
-                        ForEach(topic.sections, id: \.heading) { section in
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text(section.heading).font(.headline)
-                                Text(section.body)
-                                    .fixedSize(horizontal: false, vertical: true)
-                                    .textSelection(.enabled)
-                            }
+        HStack(spacing: 0) {
+            if !sidebarHidden {
+                SidebarColumn(hidden: $sidebarHidden) {
+                    VStack(alignment: .leading, spacing: Spacing.medium) {
+                        BrandMark(title: "Freshet Help")
+                        SearchCapsule(text: $query, prompt: "Search Help", width: 200, focusRequest: $focusSearch)
+                    }
+                } rows: {
+                    ForEach(matches) { item in
+                        NavRow(title: item.title, systemImage: item.systemImage, isSelected: topic == item, count: 0) {
+                            topic = item
                         }
                     }
-                    .frame(maxWidth: 620, alignment: .leading)
-                    .padding(24)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    if matches.isEmpty {
+                        Text("No topics match “\(query)”.")
+                            .font(Typography.callout)
+                            .foregroundStyle(Colors.textSecondary)
+                            .padding(.horizontal, Spacing.xSmall)
+                    }
                 }
-            } else {
-                ContentUnavailableView.search(text: query)
+                SidebarDivider()
             }
+            page
         }
-        .frame(minWidth: 700, minHeight: 460)
+        .frame(minWidth: 720, minHeight: 460)
+        .themedWindow()
+        .focusedSceneValue(\.sidebarHidden, $sidebarHidden)
+        .onChange(of: query) {
+            if let first = matches.first, !matches.contains(topic) { topic = first }
+        }
+    }
+
+    private var page: some View {
+        VStack(spacing: 0) {
+            WindowHeader(title: topic.title, subtitle: "Freshet Help", sidebarHidden: $sidebarHidden) { EmptyView() }
+            ScrollView {
+                VStack(alignment: .leading, spacing: Spacing.small) {
+                    ForEach(topic.sections, id: \.heading) { section in
+                        VStack(alignment: .leading, spacing: Spacing.xSmall) {
+                            Text(section.heading)
+                                .font(Typography.headline)
+                                .accessibilityAddTraits(.isHeader)
+                            Text(section.body)
+                                .lineSpacing(3)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .textSelection(.enabled)
+                        }
+                        .padding(Spacing.medium)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .card()
+                    }
+                }
+                .frame(maxWidth: 640, alignment: .leading)
+                .padding(.horizontal, PageLayout.horizontalInset)
+                .padding(.top, Spacing.xxSmall)
+                .padding(.bottom, Spacing.large)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .id(topic)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .ignoresSafeArea(.container, edges: .top)
     }
 
     private var matches: [HelpTopic] {
@@ -128,14 +163,14 @@ enum HelpTopic: String, CaseIterable, Identifiable {
         case .rss:
             return [
                 HelpSection(heading: "Feeds",
-                            body: "Choose File > RSS Downloader, then click + to add a feed's address. Double-click an item to download it."),
+                            body: "Choose File > RSS Downloader, then click Add Feed and paste the feed's address. Select items and click Download, or double-click one."),
                 HelpSection(heading: "Filters",
-                            body: "On the Filters tab, add a filter to download new items automatically. * matches any text and | separates alternatives. Turn on the smart episode filter to get each episode only once."),
+                            body: "Switch the sidebar to Filters and click Add Filter to download new items automatically. * matches any text and | separates alternatives. Turn on the smart episode filter to get each episode only once."),
             ]
         case .creating:
             return [
                 HelpSection(heading: "Make a torrent",
-                            body: "Choose File > New Torrent (Command-N), add a file or folder, list trackers one per line, and click Create and Save As. Leave Start seeding on to share it right away."),
+                            body: "Choose File > New Torrent (Command-N), choose a file or folder, list trackers one per line, and click Create and Save As. Leave Start seeding on to share it right away."),
             ]
         case .troubleshooting:
             return [
