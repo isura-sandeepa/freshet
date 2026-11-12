@@ -1,30 +1,54 @@
+import AppKit
 import FreshetCore
 import SwiftUI
 
-/// The main window: categories on the left, the torrent list on top, detail tabs below,
-/// and a status bar along the bottom.
+/// The main window: categories in the sidebar; a header, an overview of transfers, the
+/// torrent list and the detail tabs on the right.
 struct MainView: View {
     @Environment(AppModel.self) private var model
+
+    @AppStorage(TorrentListStyle.storageKey) private var listStyle: TorrentListStyle = .cards
 
     var body: some View {
         @Bindable var model = model
         NavigationSplitView {
             SidebarView()
         } detail: {
-            VSplitView {
-                TorrentListView()
-                    .frame(minHeight: 150, idealHeight: 400, maxHeight: .infinity)
-                if model.showInspector {
-                    DetailTabsView()
-                        .frame(minHeight: 170, idealHeight: 270, maxHeight: .infinity)
+            VStack(spacing: 0) {
+                NoticeArea()
+                ContentHeader()
+                OverviewStrip()
+                VSplitView {
+                    VStack(spacing: 6) {
+                        HStack {
+                            Spacer()
+                            if listStyle == .cards { SortMenu() }
+                        }
+                        .padding(.horizontal, 4)
+                        Group {
+                            switch listStyle {
+                            case .cards: TorrentCardsView()
+                            case .table: TorrentListView()
+                            }
+                        }
+                        .panel()
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, model.showInspector ? 8 : 16)
+                    .frame(minHeight: 180, idealHeight: 420, maxHeight: .infinity)
+                    if model.showInspector {
+                        DetailTabsView()
+                            .panel()
+                            .padding(.horizontal, 16)
+                            .padding(.top, 8)
+                            .padding(.bottom, 16)
+                            .frame(minHeight: 190, idealHeight: 280, maxHeight: .infinity)
+                    }
                 }
             }
-            .safeAreaInset(edge: .top, spacing: 0) { NoticeArea() }
-            .safeAreaInset(edge: .bottom, spacing: 0) { StatusBarView() }
+            .background(Color(nsColor: .windowBackgroundColor))
         }
         .navigationTitle(model.windowTitle)
-        .toolbar { MainToolbar(model: model) }
-        .searchable(text: $model.searchText, placement: .toolbar, prompt: "Filter torrents")
         .sheet(isPresented: $model.isAddSheetPresented) {
             if let pending = model.pendingAdds.first {
                 AddTorrentSheet(pending: pending).id(pending.id)
@@ -142,62 +166,6 @@ struct WebSearchPopover: View {
     }
 }
 
-struct MainToolbar: ToolbarContent {
-    let model: AppModel
-
-    var body: some ToolbarContent {
-        ToolbarItemGroup(placement: .navigation) {
-            Button { model.openTorrentFiles() } label: {
-                Label("Add Torrent", systemImage: "plus")
-            }
-            .help("Add .torrent files (⌘O)")
-            Button { model.showAddURL = true } label: {
-                Label("Add from URL", systemImage: "link.badge.plus")
-            }
-            .help("Add a magnet link or torrent URL (⌘U)")
-        }
-        ToolbarItemGroup(placement: .primaryAction) {
-            Button { model.perform(.start) } label: {
-                Label("Start", systemImage: "play.fill")
-            }
-            .help("Start")
-            .disabled(model.selection.isEmpty)
-            Button { model.perform(.pause) } label: {
-                Label("Pause", systemImage: "pause.fill")
-            }
-            .help("Pause")
-            .disabled(model.selection.isEmpty)
-            Button { model.requestRemove() } label: {
-                Label("Remove", systemImage: "trash")
-            }
-            .help("Remove (⌘⌫)")
-            .disabled(model.selection.isEmpty)
-            Button { model.perform(.queueUp) } label: {
-                Label("Move Up in Queue", systemImage: "arrow.up")
-            }
-            .help("Move up in queue")
-            .disabled(model.selection.isEmpty)
-            Button { model.perform(.queueDown) } label: {
-                Label("Move Down in Queue", systemImage: "arrow.down")
-            }
-            .help("Move down in queue")
-            .disabled(model.selection.isEmpty)
-            Button { model.showProperties() } label: {
-                Label("Properties", systemImage: "slider.horizontal.3")
-            }
-            .help("Properties (⌘I)")
-            .disabled(model.selection.isEmpty)
-            Button { model.showInspector.toggle() } label: {
-                Label("Details", systemImage: "rectangle.split.1x2")
-            }
-            .help(model.showInspector ? "Hide details" : "Show details")
-        }
-        ToolbarItem(placement: .automatic) {
-            WebSearchButton()
-        }
-    }
-}
-
 struct SidebarView: View {
     @Environment(AppModel.self) private var model
 
@@ -205,18 +173,16 @@ struct SidebarView: View {
         List(selection: selectionBinding) {
             Section("Torrents") {
                 ForEach(SidebarFilter.standard, id: \.self) { filter in
-                    Label(filter.title, systemImage: filter.systemImage)
-                        .badge(model.count(for: filter))
+                    SidebarRow(title: filter.title, systemImage: filter.systemImage, count: model.count(for: filter))
                         .tag(Optional(filter))
                 }
             }
             Section("Labels") {
-                Label(SidebarFilter.noLabel.title, systemImage: SidebarFilter.noLabel.systemImage)
-                    .badge(model.count(for: .noLabel))
+                SidebarRow(title: SidebarFilter.noLabel.title, systemImage: SidebarFilter.noLabel.systemImage,
+                           count: model.count(for: .noLabel))
                     .tag(Optional(SidebarFilter.noLabel))
                 ForEach(model.labels.names, id: \.self) { name in
-                    Label(name, systemImage: "tag")
-                        .badge(model.count(for: .label(name)))
+                    SidebarRow(title: name, systemImage: "tag", count: model.count(for: .label(name)))
                         .tag(Optional(SidebarFilter.label(name)))
                         .contextMenu {
                             Button("Delete Label") { model.deleteLabel(name) }
@@ -225,7 +191,8 @@ struct SidebarView: View {
             }
         }
         .listStyle(.sidebar)
-        .navigationSplitViewColumnWidth(min: 170, ideal: 210)
+        .safeAreaInset(edge: .top, spacing: 0) { SidebarHeader() }
+        .navigationSplitViewColumnWidth(min: 190, ideal: 220)
     }
 
     private var selectionBinding: Binding<SidebarFilter?> {
@@ -233,63 +200,41 @@ struct SidebarView: View {
     }
 }
 
-struct StatusBarView: View {
-    @Environment(AppModel.self) private var model
+/// The app's icon and name at the top of the sidebar.
+struct SidebarHeader: View {
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(nsImage: NSApp.applicationIconImage ?? NSImage())
+                .resizable()
+                .frame(width: 22, height: 22)
+                .accessibilityHidden(true)
+            Text("Freshet").font(.headline)
+            Spacer()
+        }
+        .padding(.horizontal, 18)
+        .padding(.top, 6)
+        .padding(.bottom, 4)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// A sidebar item with its count as quiet right-aligned text rather than a badge.
+struct SidebarRow: View {
+    let title: String
+    let systemImage: String
+    let count: Int
 
     var body: some View {
-        HStack(spacing: 14) {
-            if model.isSimulated {
-                Text("Simulation")
-                    .font(.callout.bold())
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 1)
-                    .background(Capsule().fill(Palette.warning.opacity(0.25)))
-                    .help("Freshet is running with simulated torrents (--simulate)")
+        HStack {
+            Label(title, systemImage: systemImage)
+            Spacer(minLength: 6)
+            if count > 0 {
+                Text("\(count)")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
             }
-            Label("DHT: \(model.session.dhtNodes) \(model.session.dhtNodes == 1 ? "node" : "nodes")",
-                  systemImage: "point.3.connected.trianglepath.dotted")
-            Label("Down \(Format.rateOrZero(model.totalDownloadRate))\(limitText(model.settings.downloadLimitKBps))", systemImage: "arrow.down")
-            Label("Up \(Format.rateOrZero(model.totalUploadRate))\(limitText(model.settings.uploadLimitKBps))", systemImage: "arrow.up")
-            if model.automation.capReached {
-                Label("Transfer cap reached", systemImage: "gauge.with.needle.fill").foregroundStyle(Palette.warning)
-            }
-            if model.settings.schedule.isEnabled {
-                Label("Scheduler: \(model.automation.scheduleMode.title)", systemImage: "calendar")
-                    .foregroundStyle(model.automation.scheduleMode == .full ? Color.secondary : model.automation.scheduleMode.color)
-            }
-            if model.session.isPaused && !model.automation.capReached && model.automation.scheduleMode != .off {
-                Label("Paused", systemImage: "pause.circle")
-            }
-            Spacer()
-            portStatus
-            Text("\(model.torrents.count) \(model.torrents.count == 1 ? "torrent" : "torrents")")
         }
-        .labelStyle(.titleAndIcon)
-        .font(.callout)
-        .monospacedDigit()
-        .foregroundStyle(.secondary)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 5)
-        .background(.bar)
-        .overlay(alignment: .top) { Divider() }
-    }
-
-    private func limitText(_ kilobytesPerSecond: Int) -> String {
-        kilobytesPerSecond > 0 ? " (limit \(Format.rate(kilobytesPerSecond * 1_024)))" : ""
-    }
-
-    @ViewBuilder private var portStatus: some View {
-        if model.session.isListening {
-            if model.hasIncomingConnections {
-                Label("Port \(String(model.session.listenPort)) reachable", systemImage: "checkmark.circle.fill")
-                    .foregroundStyle(Palette.success)
-            } else {
-                Label("Port \(String(model.session.listenPort))", systemImage: "network")
-                    .help("No incoming connections yet. If downloads are slow, check port forwarding.")
-            }
-        } else {
-            Label("Not listening", systemImage: "exclamationmark.triangle.fill")
-                .foregroundStyle(Palette.error)
-        }
+        .accessibilityElement(children: .combine)
     }
 }

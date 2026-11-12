@@ -54,6 +54,8 @@ final class AppModel {
     var propertiesTarget: TorrentID?
     var showSetupGuide = false
     var showWebSearch = false
+    /// Set by Edit › Filter Torrents (⌘F); the header's filter field takes focus and clears it.
+    var focusFilter = false
     /// A typed answer the main window is asking for (label name, peer address).
     var textPrompt: TextPrompt?
     /// Counting down to the when-downloads-finish action; the main window shows a banner.

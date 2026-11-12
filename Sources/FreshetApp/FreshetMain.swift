@@ -15,9 +15,10 @@ struct FreshetMain: App {
         Window("Freshet", id: mainWindowID) {
             MainView()
                 .environment(appDelegate.model)
-                .frame(minWidth: 860, minHeight: 520)
+                .frame(minWidth: 940, minHeight: 560)
         }
-        .defaultSize(width: 1_200, height: 760)
+        .windowStyle(.hiddenTitleBar)
+        .defaultSize(width: 1_200, height: 780)
         .commands { FreshetCommands(model: appDelegate.model) }
 
         Window("RSS Downloader", id: "rss") {

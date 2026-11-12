@@ -77,7 +77,8 @@ into `.devloop/snapshots/` for review without clicking through the app.
 | `Sources/FreshetApp` | The SwiftUI + AppKit app |
 | `Sources/FreshetSmoke` | `freshet-smoke`, the command-line end-to-end check |
 | `Tests` | Unit and snapshot tests (Swift Testing) |
-| `Scripts` | App bundling, the country database builder, the smoke test and development helpers |
+| `Scripts` | App bundling (with `Info.plist` and `AppIcon.icns`), the country database builder and the smoke test |
+| `Design` | `AppIcon.svg`, the source of the app icon |
 
 ## Third-party code and data
 

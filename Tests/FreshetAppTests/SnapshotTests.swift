@@ -31,7 +31,7 @@ struct SnapshotTests {
             model.rss.filters[0] = sample
         }
         let screens: [(String, AnyView, CGSize)] = [
-            ("main", AnyView(MainView()), CGSize(width: 1_200, height: 760)),
+            ("main", AnyView(MainView()), CGSize(width: 1_200, height: 780)),
             ("setup-guide", AnyView(SetupGuideView()), CGSize(width: 560, height: 600)),
             ("rss-feeds", AnyView(RSSFeedsView(rss: model.rss)), CGSize(width: 980, height: 560)),
             ("rss-filters", AnyView(RSSFiltersView(rss: model.rss)), CGSize(width: 980, height: 560)),
@@ -68,6 +68,12 @@ struct SnapshotTests {
         }
         try await render(AnyView(FilterEditor(filter: .constant(model.rss.filters[0]), rss: model.rss).environment(model)),
                          size: CGSize(width: 560, height: 700), to: out.appendingPathComponent("rss-filter-editor.png"))
+        try await render(AnyView(MainView().environment(model)), size: CGSize(width: 1_200, height: 780),
+                         to: out.appendingPathComponent("main-light.png"), appearance: .aqua)
+        UserDefaults.standard.set(TorrentListStyle.table.rawValue, forKey: TorrentListStyle.storageKey)
+        try await render(AnyView(MainView().environment(model)), size: CGSize(width: 1_200, height: 780),
+                         to: out.appendingPathComponent("main-table.png"))
+        UserDefaults.standard.set(TorrentListStyle.cards.rawValue, forKey: TorrentListStyle.storageKey)
         model.errorMessage = "“Example.torrent” is already in the list."
         model.whenDoneCountdown = WhenDoneCountdown(action: .sleep, deadline: Date().addingTimeInterval(42))
         try await render(AnyView(NoticeArea().environment(model)), size: CGSize(width: 1_000, height: 120),
@@ -85,10 +91,10 @@ struct SnapshotTests {
         }
     }
 
-    private func render(_ view: AnyView, size: CGSize, to url: URL) async throws {
+    private func render(_ view: AnyView, size: CGSize, to url: URL, appearance: NSAppearance.Name = .darkAqua) async throws {
         let host = NSHostingView(rootView: view.frame(width: size.width, height: size.height).background(Color(nsColor: .windowBackgroundColor)))
         let window = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.titled], backing: .buffered, defer: false)
-        window.appearance = NSAppearance(named: .darkAqua)
+        window.appearance = NSAppearance(named: appearance)
         window.contentView = host
         window.orderFrontRegardless()
         host.layoutSubtreeIfNeeded()

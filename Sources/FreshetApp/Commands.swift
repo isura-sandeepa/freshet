@@ -5,6 +5,7 @@ import SwiftUI
 struct FreshetCommands: Commands {
     let model: AppModel
     @Environment(\.openWindow) private var openWindow
+    @AppStorage(TorrentListStyle.storageKey) private var listStyle: TorrentListStyle = .cards
 
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
@@ -75,9 +76,25 @@ struct FreshetCommands: Commands {
                 if let url = AppPaths.thirdPartyNotices { NSWorkspace.shared.open(url) }
             }
         }
+        SidebarCommands()
         CommandGroup(after: .sidebar) {
             Button(model.showInspector ? "Hide Details" : "Show Details") { model.showInspector.toggle() }
                 .keyboardShortcut("i", modifiers: [.command, .option])
+            Divider()
+            Picker("Show Torrents", selection: $listStyle) {
+                Text("as Cards").tag(TorrentListStyle.cards)
+                    .keyboardShortcut("1", modifiers: [.command, .option])
+                Text("as Table").tag(TorrentListStyle.table)
+                    .keyboardShortcut("2", modifiers: [.command, .option])
+            }
+            .pickerStyle(.inline)
+        }
+        CommandGroup(after: .textEditing) {
+            Button("Filter Torrents") {
+                openWindow(id: mainWindowID)
+                model.focusFilter = true
+            }
+            .keyboardShortcut("f")
         }
     }
 }
