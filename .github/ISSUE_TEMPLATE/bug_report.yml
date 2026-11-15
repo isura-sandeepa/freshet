@@ -1,0 +1,64 @@
+name: Bug report
+description: Something in Freshet doesn't work the way it should.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting this. Please check the [open issues](https://github.com/isura-sandeepa/freshet/issues) first.
+        For a security problem, send a [private report](https://github.com/isura-sandeepa/freshet/security/advisories/new) instead.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you did, what you expected to happen, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Add a torrent with …
+        2. Click …
+        3. See …
+    validations:
+      required: true
+  - type: input
+    id: freshet-version
+    attributes:
+      label: Freshet version
+      description: Shown in Freshet › About Freshet.
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: input
+    id: macos-version
+    attributes:
+      label: macOS version
+      description: Shown in Apple menu › About This Mac.
+      placeholder: "macOS 15.5"
+    validations:
+      required: true
+  - type: dropdown
+    id: chip
+    attributes:
+      label: Mac chip
+      options:
+        - M1
+        - M2
+        - M3
+        - M4
+        - M5
+        - Other or not sure
+  - type: textarea
+    id: crash-report
+    attributes:
+      label: Crash report
+      description: If Freshet quit unexpectedly, paste the report from Console › Crash Reports (its name starts with "Freshet"). Remove anything private first.
+      render: text
+  - type: textarea
+    id: more
+    attributes:
+      label: Anything else?
+      description: Screenshots, settings you changed, or the kind of torrent involved (one file or many, v2, a private tracker). Please don't post links to content you don't have the right to share.

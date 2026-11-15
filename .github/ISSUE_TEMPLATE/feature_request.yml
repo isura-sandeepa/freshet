@@ -1,0 +1,26 @@
+name: Feature request
+description: Suggest something Freshet should do, or do better.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before suggesting something, please check [what Freshet won't include](https://github.com/isura-sandeepa/freshet/blob/main/CONTRIBUTING.md#what-freshet-wont-include).
+  - type: textarea
+    id: problem
+    attributes:
+      label: What would this help with?
+      description: The problem or situation, in your own words.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like Freshet to do?
+    validations:
+      required: true
+  - type: textarea
+    id: today
+    attributes:
+      label: What do you do today instead?
+      description: Workarounds you use, or how other apps handle it.
