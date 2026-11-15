@@ -1,0 +1,720 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Freshet — A native BitTorrent client for Mac</title>
+<meta name="description" content="Freshet is a free, open-source BitTorrent client built for macOS: queueing, per-torrent limits, a weekly scheduler, RSS feeds and torrent creation, with no ads and no tracking.">
+<link rel="canonical" href="https://isura-sandeepa.github.io/freshet/">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#F6F5F3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#171615" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+<link rel="icon" href="favicon-64.png" sizes="64x64" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preload" href="fonts/onest-latin.woff2" as="font" type="font/woff2" crossorigin>
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Freshet">
+<meta property="og:title" content="Freshet — BitTorrent, made for the Mac">
+<meta property="og:description" content="A free, open-source torrent client with every control a power user expects, in an app that feels at home on your Mac.">
+<meta property="og:url" content="https://isura-sandeepa.github.io/freshet/">
+<meta property="og:image" content="https://isura-sandeepa.github.io/freshet/images/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="The Freshet icon beside its main window">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Freshet",
+  "description": "A free, open-source BitTorrent client for macOS.",
+  "url": "https://isura-sandeepa.github.io/freshet/",
+  "downloadUrl": "https://github.com/isura-sandeepa/freshet/releases/latest",
+  "softwareVersion": "0.1.0",
+  "operatingSystem": "macOS 14 or later",
+  "applicationCategory": "UtilitiesApplication",
+  "license": "https://opensource.org/licenses/MIT",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "author": { "@type": "Person", "name": "Isura Sandeepa" }
+}
+</script>
+<style>
+/* Tokens: the same warm-graphite set the app uses (Sources/FreshetApp/Theme.swift). */
+@font-face {
+  font-family: "Onest";
+  src: url("fonts/onest-latin.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+:root {
+  --text-primary: #2E2D2B; --text-secondary: #64625E; --text-tertiary: #85827C;
+  --surface-base: #F6F5F3; --surface-card: #FFFFFF; --surface-raised: #FFFFFF; --surface-card-hover: #F4F2EF;
+  --fill-secondary: #EFEDEA; --fill-secondary-hover: #E8E6E2; --fill-secondary-pressed: #DFDCD8;
+  --border-subtle: #E6E3DF; --border-strong: #D5D2CD;
+  --action-primary: #353431; --action-primary-hover: #42403D; --action-primary-pressed: #2A2927; --on-action-primary: #FFFFFF;
+  --status-safe-text: #1F7A35; --status-safe-fill: #E6F4EA;
+  --status-neutral-text: #5A5853; --status-neutral-fill: #EFEDEA;
+  --chart-blue: #0072B2; --chart-sky: #56B4E9; --chart-green: #2F9E57; --chart-orange: #E69F00; --chart-neutral: #8C8983;
+  --tile-blue: #0072B2; --tile-green: #2F9E57; --tile-orange: #C27F00; --tile-graphite: #7A7771;
+  --radius-sm: 6px; --radius-md: 8px; --radius-lg: 14px; --radius-xl: 18px;
+  --font-text: "Onest", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-figures: ui-rounded, "SF Pro Rounded", "Onest", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --window-rim: rgba(0, 0, 0, 0.1);
+  --window-shadow: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.08)) drop-shadow(0 22px 34px rgba(46, 45, 43, 0.16));
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --text-primary: #ECEAE6; --text-secondary: #A6A39D; --text-tertiary: #807D78;
+    --surface-base: #171615; --surface-card: #1E1D1C; --surface-raised: #2B2A28; --surface-card-hover: #2A2927;
+    --fill-secondary: #282725; --fill-secondary-hover: #2F2E2C; --fill-secondary-pressed: #373533;
+    --border-subtle: #302F2D; --border-strong: #3D3B38;
+    --action-primary: #ECEAE6; --action-primary-hover: #F6F4F1; --action-primary-pressed: #D8D5D0; --on-action-primary: #171615;
+    --status-safe-text: #5FD36B; --status-safe-fill: #1B2E22;
+    --status-neutral-text: #A9A6A0; --status-neutral-fill: #282725;
+    --chart-blue: #3A94D0; --chart-sky: #6CC3F0; --chart-green: #43B86B; --chart-orange: #F0B020; --chart-neutral: #A8A49D;
+    --tile-blue: #1E78BA; --tile-green: #2F9E57; --tile-orange: #CF8E00; --tile-graphite: #6E6B66;
+    --window-rim: rgba(255, 255, 255, 0.12);
+    --window-shadow: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.5)) drop-shadow(0 22px 34px rgba(0, 0, 0, 0.55));
+  }
+}
+@media (prefers-contrast: more) { :root { --border-subtle: var(--border-strong); } }
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; scroll-behavior: smooth; scroll-padding-top: 76px; }
+body {
+  margin: 0; background: var(--surface-base); color: var(--text-primary);
+  font: 400 17px/1.55 var(--font-text); letter-spacing: 0.1px;
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+}
+img, svg { display: block; }
+img { max-width: 100%; height: auto; }
+a { color: inherit; }
+p { margin: 0; }
+h1, h2, h3 { margin: 0; font-weight: 600; }
+.num { font-family: var(--font-figures); font-variant-numeric: tabular-nums; letter-spacing: 0; }
+.mono { font-family: var(--font-mono); letter-spacing: 0; }
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+:focus-visible { outline: 2px solid var(--action-primary); outline-offset: 3px; }
+.skip {
+  position: absolute; left: 16px; top: -60px; z-index: 20; padding: 10px 16px; border-radius: 999px;
+  background: var(--action-primary); color: var(--on-action-primary); font-weight: 600; text-decoration: none;
+}
+.skip:focus { top: 12px; }
+.wrap { max-width: 1168px; margin: 0 auto; padding: 0 24px; }
+
+/* Buttons: capsules; one primary per view. */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 44px; padding: 0 22px; border-radius: 999px; border: 1px solid transparent;
+  font: 600 16px/1 var(--font-text); letter-spacing: 0.1px; text-decoration: none; white-space: nowrap;
+  transition: background-color 0.12s ease-out, border-color 0.12s ease-out, color 0.12s ease-out;
+}
+.btn svg { width: 18px; height: 18px; flex: none; }
+.btn-primary { background: var(--action-primary); color: var(--on-action-primary); }
+.btn-primary:hover { background: var(--action-primary-hover); }
+.btn-primary:active { background: var(--action-primary-pressed); }
+.btn-secondary { background: var(--fill-secondary); color: var(--text-primary); border-color: var(--border-strong); }
+.btn-secondary:hover { background: var(--fill-secondary-hover); }
+.btn-secondary:active { background: var(--fill-secondary-pressed); }
+.btn-small { height: 32px; padding: 0 14px; gap: 6px; font-size: 14px; }
+.btn-small svg { width: 15px; height: 15px; }
+
+/* Header */
+.site-header {
+  position: sticky; top: 0; z-index: 10;
+  background: color-mix(in srgb, var(--surface-base) 84%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(18px); backdrop-filter: saturate(180%) blur(18px);
+  border-bottom: 1px solid transparent; transition: border-color 0.2s ease-out;
+}
+.site-header.is-scrolled { border-bottom-color: var(--border-subtle); }
+.nav { display: flex; align-items: center; height: 60px; }
+.brand { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; font-size: 17px; font-weight: 600; }
+.brand img { width: 32px; height: 32px; }
+.nav-links { display: flex; align-items: center; gap: 2px; margin-left: auto; }
+.nav-links a:not(.btn) {
+  padding: 6px 12px; border-radius: 999px; text-decoration: none;
+  color: var(--text-secondary); font-size: 15px; font-weight: 500;
+  transition: background-color 0.12s ease-out, color 0.12s ease-out;
+}
+.nav-links a:not(.btn):hover { color: var(--text-primary); background: var(--fill-secondary-hover); }
+.nav-links .btn { margin-left: 10px; }
+@media (max-width: 640px) { .nav-links .wide { display: none; } }
+
+/* Hero */
+.hero { padding-top: 64px; text-align: center; }
+.hero-icon { width: 136px; height: 136px; margin: 0 auto 18px; }
+h1 {
+  font-size: clamp(40px, 6.6vw, 66px); line-height: 1.04; letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+.lede {
+  max-width: 640px; margin: 20px auto 0; font-size: clamp(18px, 2.2vw, 21px); line-height: 1.5;
+  color: var(--text-secondary); text-wrap: balance;
+}
+.cta { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 32px; }
+.meta { margin-top: 18px; font-size: 14px; letter-spacing: 0.2px; color: var(--text-secondary); }
+.meta .sep { margin: 0 6px; color: var(--text-tertiary); }
+
+/* The hero window: a real render of the main window. Shadow and fade are applied together
+   on one wrapper (filter first, then mask), so the shadow fades out with the window. */
+main { overflow-x: clip; }
+.window {
+  --room: 72px;
+  margin: calc(56px - var(--room)) calc(-1 * var(--room)) 0;
+  padding: var(--room) var(--room) 0; filter: var(--window-shadow);
+  -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent 90%);
+  mask-image: linear-gradient(to bottom, #000 55%, transparent 90%);
+}
+@media (max-width: 640px) { .window { --room: 16px; margin-top: 32px; } }
+.window-frame { position: relative; border-radius: clamp(8px, 1.3vw, 14px); overflow: hidden; }
+.window-frame::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  box-shadow: inset 0 0 0 1px var(--window-rim);
+}
+
+/* Cards */
+.card { background: var(--surface-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); }
+.highlights { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 8px; }
+.highlights .card { padding: 24px; }
+.highlights h3 { margin: 16px 0 6px; font-size: 18px; line-height: 1.35; letter-spacing: 0.05px; }
+.highlights p { font-size: 15px; line-height: 1.55; letter-spacing: 0.15px; color: var(--text-secondary); }
+@media (max-width: 880px) { .highlights { grid-template-columns: 1fr; } }
+.tile {
+  width: 36px; height: 36px; border-radius: 26%; display: grid; place-items: center; color: #fff;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 55%), linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.12));
+  box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.12);
+}
+.tile svg { width: 19px; height: 19px; filter: drop-shadow(0 0.5px 0.5px rgba(0, 0, 0, 0.2)); }
+.tile.blue { background-color: var(--tile-blue); }
+.tile.green { background-color: var(--tile-green); }
+.tile.orange { background-color: var(--tile-orange); }
+.tile.graphite { background-color: var(--tile-graphite); }
+
+/* Feature rows */
+.section { padding-top: 128px; }
+.section-head { max-width: 640px; margin: 0 auto; text-align: center; }
+.section-head p { margin-top: 14px; font-size: 18px; color: var(--text-secondary); text-wrap: pretty; }
+h2 { font-size: clamp(30px, 3.8vw, 42px); line-height: 1.12; letter-spacing: -0.01em; text-wrap: balance; }
+.feature { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 64px; align-items: center; }
+.feature + .feature { margin-top: 128px; }
+.feature.flip { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); }
+.feature.flip > .feature-text { order: 2; }
+.feature-text { max-width: 460px; }
+.feature-text p { margin-top: 16px; color: var(--text-secondary); text-wrap: pretty; }
+.ticks { list-style: none; margin: 24px 0 0; padding: 0; display: grid; gap: 10px; }
+.ticks li { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 10px; font-size: 15px; line-height: 1.5; }
+.ticks svg { width: 20px; height: 20px; margin-top: 1px; color: var(--status-safe-text); }
+@media (max-width: 900px) {
+  .feature, .feature.flip { grid-template-columns: minmax(0, 1fr); gap: 32px; }
+  .feature.flip > .feature-text { order: 0; }
+  .feature-text { max-width: 600px; }
+}
+
+/* Illustrations: pieces of the app's interface, drawn with the same tokens. */
+.panel {
+  background: var(--surface-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-xl);
+  padding: 24px; font-size: 13px; line-height: 1.4; letter-spacing: 0.15px;
+}
+.panel-head { display: flex; align-items: center; gap: 12px; }
+.panel-head .grow { flex: 1; min-width: 0; }
+.panel-title { font-size: 15px; font-weight: 600; letter-spacing: 0.1px; }
+.panel-sub { margin-top: 2px; font-size: 12px; letter-spacing: 0.25px; color: var(--text-secondary); }
+.panel .tile { width: 28px; height: 28px; }
+.panel .tile svg { width: 15px; height: 15px; }
+.switch {
+  flex: none; position: relative; width: 32px; height: 19px; border-radius: 999px;
+  background: var(--fill-secondary-pressed); box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.06);
+}
+.switch::after {
+  content: ""; position: absolute; top: 2px; left: 2px; width: 15px; height: 15px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+.switch.on { background: var(--status-safe-text); }
+.switch.on::after { left: 15px; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 20px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px 0 6px;
+  border-radius: 999px; background: var(--fill-secondary); border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+.chip.selected { background: var(--surface-raised); border: 1.5px solid var(--action-primary); color: var(--text-primary); font-weight: 600; }
+.sw { width: 16px; height: 16px; border-radius: 4px; background-position: center; background-repeat: no-repeat; background-size: 11px; }
+.f { background-color: color-mix(in srgb, var(--chart-green) 80%, transparent); }
+.l { background-color: color-mix(in srgb, var(--chart-orange) 80%, transparent); background-image: var(--glyph-limited); }
+.s { background-color: color-mix(in srgb, var(--chart-sky) 80%, transparent); background-image: var(--glyph-seeding); }
+.o { background-color: color-mix(in srgb, var(--chart-neutral) 80%, transparent); background-image: var(--glyph-off); }
+:root {
+  --glyph-limited: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cg fill='%23000' fill-opacity='.65'%3E%3Cpath d='M1.4 8.2a4.1 3.9 0 0 1 8.2 0z'/%3E%3Ccircle cx='10.3' cy='7' r='1.25'/%3E%3Crect x='2.4' y='8' width='1.7' height='2.2' rx='.6'/%3E%3Crect x='6.9' y='8' width='1.7' height='2.2' rx='.6'/%3E%3C/g%3E%3C/svg%3E");
+  --glyph-seeding: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M6 10.2V2.4M2.7 5.5 6 2.2l3.3 3.3' fill='none' stroke='%23000' stroke-opacity='.65' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --glyph-off: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='m3 3 6 6m0-6-6 6' fill='none' stroke='%23000' stroke-opacity='.65' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+.plan { display: grid; grid-template-columns: 34px repeat(24, minmax(0, 1fr)); gap: 2px; margin-top: 16px; }
+.plan .d { align-self: center; font-size: 11px; letter-spacing: 0.3px; color: var(--text-secondary); }
+.plan i { height: 18px; border-radius: 2px; background-position: center; background-repeat: no-repeat; background-size: 9px; }
+.plan .hours { grid-column: span 6; padding-top: 4px; font-size: 11px; color: var(--text-secondary); }
+.plan .hours.first { grid-column: 2 / span 6; }
+@media (max-width: 560px) { .plan i { height: 13px; background-image: none; } }
+.cap { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--border-subtle); }
+.cap-line { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.cap-figure { font-size: 22px; font-weight: 700; }
+.cap-context { font-size: 13px; font-weight: 500; color: var(--text-secondary); }
+.track { display: flex; gap: 2px; height: 8px; margin-top: 10px; border-radius: 999px; overflow: hidden; background: var(--fill-secondary); }
+.track span { display: block; height: 100%; }
+.track .down { background: var(--chart-blue); }
+.track .up { background: var(--chart-green); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; font-size: 12px; color: var(--text-secondary); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend b { font-weight: 600; color: var(--text-primary); }
+.legend .dot { width: 8px; height: 8px; border-radius: 50%; }
+
+/* Form pieces, as in the New Torrent window */
+.sheet-title { font-size: 20px; font-weight: 600; letter-spacing: 0; }
+.group-label { margin: 18px 4px 8px; font-size: 11px; font-weight: 500; letter-spacing: 0.3px; color: var(--text-secondary); }
+.group { background: var(--fill-secondary); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); }
+.row { display: flex; align-items: center; gap: 16px; min-height: 44px; padding: 10px 16px; }
+.row.stack { display: block; }
+.row + .row { border-top: 1px solid var(--border-subtle); }
+.row .label { flex: 1; min-width: 0; }
+.caption { margin-top: 2px; font-size: 12px; letter-spacing: 0.25px; color: var(--text-secondary); }
+.mini {
+  flex: none; display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: 999px;
+  background: var(--fill-secondary); border: 1px solid var(--border-strong); font-size: 12px; font-weight: 600; color: var(--text-primary);
+}
+.mini.primary { height: 30px; padding: 0 14px; background: var(--action-primary); border-color: transparent; color: var(--on-action-primary); font-size: 13px; }
+.picker {
+  flex: none; display: inline-flex; align-items: center; gap: 10px; height: 28px; padding: 0 10px;
+  border-radius: var(--radius-md); background: var(--surface-raised); border: 1px solid var(--border-strong);
+}
+.picker svg { width: 10px; height: 10px; color: var(--text-secondary); }
+.well {
+  margin-top: 8px; padding: 8px 10px; border-radius: var(--radius-md); background: var(--surface-card);
+  border: 1px solid var(--border-strong); font-size: 12px; line-height: 1.7; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+.sheet-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px; }
+
+/* Feed list, as in the RSS window */
+.feed { margin-top: 18px; border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); overflow: hidden; }
+.feed-row { display: grid; grid-template-columns: minmax(0, 1fr) 84px 108px; align-items: center; gap: 12px; min-height: 40px; padding: 8px 14px; }
+.feed-row + .feed-row { border-top: 1px solid var(--border-subtle); }
+.feed-row.head { min-height: 32px; font-size: 11px; font-weight: 500; letter-spacing: 0.3px; color: var(--text-secondary); background: var(--fill-secondary); }
+.feed-row .name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.feed-row .when { font-size: 12px; color: var(--text-secondary); }
+.feed-row.dim { opacity: 0.55; }
+.badge {
+  justify-self: start; display: inline-flex; align-items: center; padding: 2px 6px; border-radius: var(--radius-sm);
+  font-size: 11px; font-weight: 500; letter-spacing: 0.3px; white-space: nowrap;
+  color: var(--status-safe-text); background: var(--status-safe-fill);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--status-safe-text) 22%, transparent);
+}
+.rule { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 4px 12px; margin-top: 18px; padding: 14px 16px; border-radius: var(--radius-lg); background: var(--fill-secondary); border: 1px solid var(--border-subtle); }
+.rule .k { color: var(--text-secondary); }
+.rule .v { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.rule .title { grid-column: 1 / -1; margin-bottom: 6px; font-weight: 600; }
+@media (max-width: 560px) {
+  .panel { padding: 18px; }
+  .feed-row { grid-template-columns: minmax(0, 1fr) 96px; }
+  .feed-row .when { display: none; }
+}
+
+/* Details grid */
+.details {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; margin-top: 48px;
+  background: var(--border-subtle); border: 1px solid var(--border-subtle); border-radius: var(--radius-xl); overflow: hidden;
+}
+.details > div { padding: 26px 26px 28px; background: var(--surface-card); }
+.details h3 { font-size: 16px; line-height: 1.4; letter-spacing: 0.1px; }
+.details p { margin-top: 6px; font-size: 15px; line-height: 1.55; letter-spacing: 0.15px; color: var(--text-secondary); }
+@media (max-width: 900px) { .details { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .details { grid-template-columns: minmax(0, 1fr); } }
+
+/* Responsible use */
+.notice {
+  display: flex; gap: 16px; max-width: 860px; margin: 96px auto 0; padding: 22px 24px;
+  border-radius: var(--radius-lg); background: var(--status-neutral-fill);
+  border: 1px solid color-mix(in srgb, var(--status-neutral-text) 22%, transparent);
+}
+.notice svg { flex: none; width: 22px; height: 22px; margin-top: 1px; color: var(--status-neutral-text); }
+.notice h2 { font-size: 17px; line-height: 1.4; letter-spacing: 0.1px; }
+.notice p { margin-top: 6px; font-size: 15px; line-height: 1.6; color: var(--text-secondary); }
+
+/* FAQ */
+.faq { max-width: 860px; margin: 40px auto 0; }
+.faq details + details { border-top: 1px solid var(--border-subtle); }
+.faq summary {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 20px 24px; font-size: 17px; font-weight: 500; cursor: pointer; list-style: none;
+  border-radius: var(--radius-lg); transition: background-color 0.12s ease-out;
+}
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary:hover { background: var(--surface-card-hover); }
+.faq summary svg { flex: none; width: 18px; height: 18px; color: var(--text-tertiary); transition: transform 0.2s ease-out; }
+.faq details[open] summary svg { transform: rotate(180deg); }
+.answer { padding: 0 24px 22px; color: var(--text-secondary); font-size: 16px; }
+.answer p + p, .answer p + pre, .answer pre + p { margin-top: 12px; }
+.answer a { color: var(--text-primary); text-underline-offset: 3px; }
+pre {
+  margin: 0; padding: 14px 16px; overflow-x: auto; border-radius: 10px;
+  background: var(--fill-secondary); border: 1px solid var(--border-subtle);
+  color: var(--text-primary); font: 13.5px/1.65 var(--font-mono);
+}
+kbd { font: inherit; font-weight: 600; color: var(--text-primary); }
+
+/* Closing call to action and footer */
+.closing { padding-top: 128px; padding-bottom: 112px; text-align: center; }
+.closing img { width: 88px; height: 88px; margin: 0 auto 16px; }
+.closing p { margin-top: 12px; font-size: 18px; color: var(--text-secondary); }
+.site-footer { border-top: 1px solid var(--border-subtle); padding: 32px 0 48px; font-size: 14px; color: var(--text-secondary); }
+.footer-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px 32px; }
+.footer-brand { display: inline-flex; align-items: center; gap: 8px; color: var(--text-primary); font-weight: 600; font-size: 15px; }
+.footer-brand img { width: 26px; height: 26px; }
+.footer-links { display: flex; flex-wrap: wrap; gap: 6px 22px; }
+.footer-links a { text-decoration: none; }
+.footer-links a:hover { color: var(--text-primary); text-decoration: underline; text-underline-offset: 3px; }
+.fineprint { margin-top: 20px; font-size: 13px; line-height: 1.6; letter-spacing: 0.2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <nav class="wrap nav" aria-label="Main">
+    <a class="brand" href="./" aria-label="Freshet home"><img src="images/icon.svg" alt="" width="32" height="32">Freshet</a>
+    <div class="nav-links">
+      <a class="wide" href="#features">Features</a>
+      <a class="wide" href="#faq">FAQ</a>
+      <a href="https://github.com/isura-sandeepa/freshet">GitHub</a>
+      <a class="btn btn-small btn-secondary" id="nav-download" data-download href="https://github.com/isura-sandeepa/freshet/releases/latest">Download</a>
+    </div>
+  </nav>
+</header>
+
+<main id="main">
+  <section class="wrap hero">
+    <img class="hero-icon" src="images/icon.svg" alt="" width="136" height="136">
+    <h1>BitTorrent, made for the Mac.</h1>
+    <p class="lede">Freshet is a free, open-source torrent client with every control a power user expects, in an app that looks and feels like it belongs on your Mac.</p>
+    <div class="cta">
+      <a class="btn btn-primary" id="hero-download" data-download href="https://github.com/isura-sandeepa/freshet/releases/latest">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3v10m-4.5-4.5L10 13l4.5-4.5M4 16.5h12"/></svg>
+        Download for Mac
+      </a>
+      <a class="btn btn-secondary" href="https://github.com/isura-sandeepa/freshet">View on GitHub</a>
+    </div>
+    <p class="meta">Version <span class="num" data-version>0.1.0</span><span class="sep" aria-hidden="true">·</span><span class="num" data-size>8.6 MB</span><span class="sep" aria-hidden="true">·</span>macOS 14 or later on Apple silicon</p>
+
+    <div class="window">
+      <div class="window-frame">
+        <picture>
+          <source srcset="images/hero-dark.webp" media="(prefers-color-scheme: dark)">
+          <img src="images/hero-light.webp" width="2400" height="960" alt="The Freshet main window. A sidebar lists All, Downloading, Seeding, Completed, Active and Inactive with counts. The page shows 12.6 MB/s down and 3.58 MB/s up above a colored bar of 24 torrents by state, then cards for an Ubuntu image, a Debian image and the Blender open movie Sintel, each with its progress, speeds and time left." fetchpriority="high">
+        </picture>
+      </div>
+    </div>
+  </section>
+
+  <section class="wrap" aria-labelledby="highlights-title">
+    <h2 class="visually-hidden" id="highlights-title">Highlights</h2>
+    <div class="highlights">
+      <div class="card">
+        <div class="tile graphite" aria-hidden="true">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="2.5" y="3.5" width="15" height="13" rx="3"/><path d="M2.5 7.5h15" stroke-linecap="round"/><circle cx="5.3" cy="5.5" r=".2" stroke-width="1.6"/><circle cx="7.6" cy="5.5" r=".2" stroke-width="1.6"/></svg>
+        </div>
+        <h3>Feels like a Mac app</h3>
+        <p>Built with SwiftUI and AppKit: light and dark appearance, speeds in the menu bar, notifications, keyboard shortcuts and VoiceOver throughout.</p>
+      </div>
+      <div class="card">
+        <div class="tile blue" aria-hidden="true">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 16V4M3 7.5 6.5 4 10 7.5M13.5 4v12M10 12.5l3.5 3.5 3.5-3.5"/></svg>
+        </div>
+        <h3>A proven engine inside</h3>
+        <p>Freshet runs on libtorrent, the open-source engine behind many torrent apps, with DHT, peer exchange, encryption, UPnP and v2 torrents.</p>
+      </div>
+      <div class="card">
+        <div class="tile green" aria-hidden="true">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2.8 4 5v4.6c0 3.6 2.6 6.4 6 7.6 3.4-1.2 6-4 6-7.6V5z"/><path d="m7.2 10 2 2 3.6-3.8"/></svg>
+        </div>
+        <h3>Free, with nothing attached</h3>
+        <p>No ads, no bundled offers, no accounts and no tracking. Freshet is MIT-licensed, and every line of it is on GitHub.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="wrap section" id="features" aria-label="Features">
+    <div class="feature">
+      <div class="feature-text">
+        <h2>Speeds that fit your week</h2>
+        <p>Paint a weekly plan hour by hour: full speed overnight, limited while you work, seeding only at the weekend. A transfer cap and seeding goals keep usage in check, and a banner tells you whenever a rule is holding transfers back.</p>
+        <ul class="ticks">
+          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 10.5 3.2 3.2L15 6.8"/></svg>A 7 × 24 scheduler with four modes</li>
+          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 10.5 3.2 3.2L15 6.8"/></svg>A transfer cap with a daily usage chart</li>
+          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 10.5 3.2 3.2L15 6.8"/></svg>Global and per-torrent limits, and a separate upload rate for when nothing is downloading</li>
+        </ul>
+      </div>
+      <div class="panel" role="img" aria-label="The weekly plan: full speed overnight, limited during working hours, off on some weekday evenings and seeding only on weekend afternoons. Below it, a transfer cap shows 41.6 GB used of 100 GB in the last 31 days.">
+        <div class="panel-head">
+          <div class="grow">
+            <div class="panel-title">Weekly plan</div>
+            <div class="panel-sub">Change speeds hour by hour through the week.</div>
+          </div>
+          <span class="switch on"></span>
+        </div>
+        <div class="chips">
+          <span class="chip"><i class="sw f"></i>Full speed</span>
+          <span class="chip selected"><i class="sw l"></i>Limited</span>
+          <span class="chip"><i class="sw s"></i>Seeding only</span>
+          <span class="chip"><i class="sw o"></i>Turn off</span>
+        </div>
+        <div class="plan">
+          <span class="d">Mon</span><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="f"></i><i class="f"></i><i class="o"></i><i class="o"></i><i class="f"></i><i class="f"></i>
+          <span class="d">Tue</span><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="f"></i><i class="f"></i><i class="o"></i><i class="o"></i><i class="f"></i><i class="f"></i>
+          <span class="d">Wed</span><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i>
+          <span class="d">Thu</span><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="f"></i><i class="f"></i><i class="o"></i><i class="o"></i><i class="f"></i><i class="f"></i>
+          <span class="d">Fri</span><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i>
+          <span class="d">Sat</span><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="s"></i><i class="s"></i><i class="s"></i><i class="s"></i><i class="s"></i><i class="s"></i><i class="s"></i><i class="s"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i>
+          <span class="d">Sun</span><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="s"></i><i class="s"></i><i class="s"></i><i class="s"></i><i class="s"></i><i class="s"></i><i class="s"></i><i class="s"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i>
+          <span class="hours first num">0:00</span><span class="hours num">6:00</span><span class="hours num">12:00</span><span class="hours num">18:00</span>
+        </div>
+        <div class="cap">
+          <div class="cap-line"><span class="cap-figure num">41.6 GB</span><span class="cap-context num">of 100 GB in the last 31 days</span></div>
+          <div class="track"><span class="down" style="width: 33.1%"></span><span class="up" style="width: 8.5%"></span></div>
+          <div class="legend">
+            <span><i class="dot" style="background: var(--chart-blue)"></i>Download <b class="num">33.1 GB</b></span>
+            <span><i class="dot" style="background: var(--chart-green)"></i>Upload <b class="num">8.5 GB</b></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="feature flip">
+      <div class="feature-text">
+        <h2>Share what you make</h2>
+        <p>Turn a file or folder into a torrent: add trackers and web seeds, choose v1, v2 or hybrid, and make it private if you like. Freshet hashes the files in the background, then starts seeding them for you.</p>
+        <ul class="ticks">
+          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 10.5 3.2 3.2L15 6.8"/></svg>Tiered trackers and HTTP web seeds</li>
+          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 10.5 3.2 3.2L15 6.8"/></svg>Automatic or hand-picked piece size</li>
+          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 10.5 3.2 3.2L15 6.8"/></svg>Patterns to skip files you don't want to share</li>
+        </ul>
+      </div>
+      <div class="panel" role="img" aria-label="The New Torrent window with a folder called Short Film – Final Cut chosen: 3 files, 4.82 GB. Two trackers are listed, the format is Hybrid (v1 + v2) and Start seeding is on.">
+        <div class="sheet-title">New Torrent</div>
+        <div class="panel-sub">Make a .torrent from a file or folder to share it</div>
+        <div class="group-label">Source</div>
+        <div class="group">
+          <div class="row">
+            <div class="label">Files<div class="caption num">Short Film – Final Cut · 3 files · 4.82 GB</div></div>
+            <span class="mini">Choose Folder…</span>
+          </div>
+        </div>
+        <div class="group-label">Trackers and web seeds</div>
+        <div class="group">
+          <div class="row stack">
+            Trackers
+            <div class="well mono">udp://tracker.example.org:6969/announce<br>https://tracker.example.net/announce</div>
+            <div class="caption">One per line; a blank line starts the next tier.</div>
+          </div>
+        </div>
+        <div class="group-label">Options</div>
+        <div class="group">
+          <div class="row">
+            <div class="label">Format</div>
+            <span class="picker">Hybrid (v1 + v2)<svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m2.5 4 2.5-2.5L7.5 4m-5 2L5 8.5 7.5 6"/></svg></span>
+          </div>
+          <div class="row">
+            <div class="label">Start seeding<div class="caption">Add it to Freshet and share it right away.</div></div>
+            <span class="switch on"></span>
+          </div>
+        </div>
+        <div class="sheet-actions"><span class="mini primary">Create and Save As…</span></div>
+      </div>
+    </div>
+
+    <div class="feature">
+      <div class="feature-text">
+        <h2>Let feeds do the fetching</h2>
+        <p>Subscribe to RSS and Atom feeds, then write filters with wildcards and exclusions. When something new matches, Freshet adds it on its own — to the folder and label you chose.</p>
+        <ul class="ticks">
+          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 10.5 3.2 3.2L15 6.8"/></svg>Feeds checked on the schedule you set</li>
+          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 10.5 3.2 3.2L15 6.8"/></svg>Filters with include and exclude patterns</li>
+          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 10.5 3.2 3.2L15 6.8"/></svg>A save folder and label for each filter</li>
+        </ul>
+      </div>
+      <div class="panel" role="img" aria-label="A feed called Distribution releases with four items. A filter named arm64 images matched the Ubuntu and Debian arm64 images; the two x86 images were left alone. The filter includes *arm64*.iso, excludes *beta*, and saves to the Images folder with the label Linux.">
+        <div class="panel-head">
+          <span class="tile orange">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M3.5 7.5a5 5 0 0 1 5 5M3.5 3a9.5 9.5 0 0 1 9.5 9.5"/><circle cx="4" cy="12" r="1.1" fill="currentColor" stroke="none"/></svg>
+          </span>
+          <div class="grow">
+            <div class="panel-title">Distribution releases</div>
+            <div class="panel-sub num">Checked 4 min ago · 4 items</div>
+          </div>
+        </div>
+        <div class="feed">
+          <div class="feed-row head"><span>Name</span><span class="when">Published</span><span>Status</span></div>
+          <div class="feed-row"><span class="name">ubuntu-26.04.1-desktop-arm64.iso</span><span class="when">Today</span><span class="badge">arm64 images</span></div>
+          <div class="feed-row dim"><span class="name">openSUSE-Tumbleweed-DVD-x86_64.iso</span><span class="when">Yesterday</span><span></span></div>
+          <div class="feed-row"><span class="name">debian-13.3.0-arm64-netinst.iso</span><span class="when num">2 days ago</span><span class="badge">arm64 images</span></div>
+          <div class="feed-row dim"><span class="name">linuxmint-23-cinnamon-64bit.iso</span><span class="when num">4 days ago</span><span></span></div>
+        </div>
+        <div class="rule">
+          <div class="title">arm64 images</div>
+          <span class="k">Include</span><span class="v mono">*arm64*.iso</span>
+          <span class="k">Exclude</span><span class="v mono">*beta*</span>
+          <span class="k">Save to</span><span class="v">~/Downloads/Images</span>
+          <span class="k">Label</span><span class="v">Linux</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="wrap section" aria-labelledby="details-title">
+    <div class="section-head">
+      <h2 id="details-title">And all the details</h2>
+      <p>The controls power users reach for, each where you'd expect it.</p>
+    </div>
+    <div class="details">
+      <div><h3>Every way to add</h3><p>Torrent files, magnet links, URLs and <span style="white-space: nowrap">info-hashes</span>, by drag and drop or from a watch folder.</p></div>
+      <div><h3>Queue and priorities</h3><p>Queue order, force start, file priorities, sequential download and labels.</p></div>
+      <div><h3>Details on demand</h3><p>Files, peers with their countries, trackers, a live speed chart and a log for each torrent.</p></div>
+      <div><h3>Connection privacy</h3><p>Protocol encryption, SOCKS and HTTP proxies, and IP filter files.</p></div>
+      <div><h3>Reachable by peers</h3><p>UPnP and NAT-PMP port mapping, with a banner when your port is closed.</p></div>
+      <div><h3>When it's all done</h3><p>Quit, sleep, shut down or restart the Mac, with a countdown you can cancel.</p></div>
+      <div><h3>Menu bar and Dock</h3><p>Live speeds and controls in the menu bar, a Dock badge and notifications.</p></div>
+      <div><h3>Run a script</h3><p>Start a program of your choice when a torrent finishes or changes state.</p></div>
+      <div><h3>Help built in</h3><p>A setup guide and searchable help topics, right inside the app.</p></div>
+    </div>
+
+    <aside class="notice" aria-labelledby="fair-title">
+      <svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="8.6"/><path d="M11 10v5.2"/><circle cx="11" cy="6.9" r=".4" stroke-width="1.6"/></svg>
+      <div>
+        <h2 id="fair-title">For files you're free to share</h2>
+        <p>BitTorrent is how many projects deliver big downloads: Linux distributions, open movies, research datasets and public-domain archives. Freshet doesn't include, index or recommend any content — please download and share only what you have the right to.</p>
+      </div>
+    </aside>
+  </section>
+
+  <section class="wrap section" id="faq" aria-labelledby="faq-title">
+    <div class="section-head"><h2 id="faq-title">Questions</h2></div>
+    <div class="card faq">
+      <details>
+        <summary>Is Freshet really free?<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 7.5 5 5 5-5"/></svg></summary>
+        <div class="answer"><p>Yes. Freshet is open source under the MIT License, with no ads, in-app purchases, accounts or bundled offers.</p></div>
+      </details>
+      <details>
+        <summary>Which Macs can run it?<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 7.5 5 5 5-5"/></svg></summary>
+        <div class="answer"><p>Any Mac with Apple silicon (M1 or later) running macOS 14 Sonoma or later. Intel Macs aren't supported.</p></div>
+      </details>
+      <details>
+        <summary>macOS says it can't verify the app. How do I open it?<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 7.5 5 5 5-5"/></svg></summary>
+        <div class="answer">
+          <p>Freshet isn't notarized by Apple yet, so the first launch takes one extra step. Unzip the download, drag Freshet to Applications and open it once, then close the warning. Go to <kbd>System Settings › Privacy &amp; Security</kbd>, scroll down to Security and click <kbd>Open Anyway</kbd>.</p>
+          <p>On macOS 14 you can instead Control-click Freshet and choose <kbd>Open</kbd>. Either way, macOS remembers your choice.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Does Freshet collect any data?<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 7.5 5 5 5-5"/></svg></summary>
+        <div class="answer"><p>No. There are no analytics, crash reporters or accounts. Freshet connects only to what BitTorrent needs — peers, trackers and the DHT — and to the feeds and links you add. Your settings and torrents stay on your Mac.</p></div>
+      </details>
+      <details>
+        <summary>How do I update to a new version?<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 7.5 5 5 5-5"/></svg></summary>
+        <div class="answer"><p>Download the new version and replace the app in your Applications folder. Your torrents, labels and settings are kept. New versions are listed on the <a href="https://github.com/isura-sandeepa/freshet/releases">releases page</a>.</p></div>
+      </details>
+      <details>
+        <summary>Can I build it myself?<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 7.5 5 5 5-5"/></svg></summary>
+        <div class="answer">
+          <p>Yes. You need an Apple silicon Mac with Xcode or the Command Line Tools, and Homebrew:</p>
+          <pre><code>brew install boost openssl@3
+git clone https://github.com/isura-sandeepa/freshet.git
+cd freshet
+bash Scripts/make-app.sh</code></pre>
+          <p>The first build compiles libtorrent and takes a few minutes. The app appears in <code class="mono">build/Freshet.app</code>.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Where do I report a problem?<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 7.5 5 5 5-5"/></svg></summary>
+        <div class="answer"><p><a href="https://github.com/isura-sandeepa/freshet/issues">Open an issue on GitHub</a> with your macOS version and the steps that lead to the problem.</p></div>
+      </details>
+    </div>
+  </section>
+
+  <section class="wrap closing" aria-labelledby="get-title">
+    <img src="images/icon.svg" alt="" width="88" height="88">
+    <h2 id="get-title">Get Freshet</h2>
+    <p>Free for Macs with Apple silicon and macOS 14 or later.</p>
+    <div class="cta">
+      <a class="btn btn-primary" id="closing-download" data-download href="https://github.com/isura-sandeepa/freshet/releases/latest">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3v10m-4.5-4.5L10 13l4.5-4.5M4 16.5h12"/></svg>
+        Download for Mac
+      </a>
+      <a class="btn btn-secondary" href="https://github.com/isura-sandeepa/freshet/releases">Release Notes</a>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="footer-top">
+      <span class="footer-brand"><img src="images/icon.svg" alt="" width="26" height="26">Freshet</span>
+      <nav class="footer-links" aria-label="Project">
+        <a href="https://github.com/isura-sandeepa/freshet">Source code</a>
+        <a href="https://github.com/isura-sandeepa/freshet/releases">Releases</a>
+        <a href="https://github.com/isura-sandeepa/freshet/issues">Report an issue</a>
+        <a href="https://github.com/isura-sandeepa/freshet/blob/main/LICENSE">License</a>
+        <a href="https://github.com/isura-sandeepa/freshet/blob/main/Sources/FreshetApp/Resources/THIRD_PARTY_NOTICES.txt">Third-party notices</a>
+      </nav>
+    </div>
+    <p class="fineprint">© 2026 Isura Sandeepa. Freshet is released under the MIT License. Mac and macOS are trademarks of Apple Inc.; Freshet is an independent project and isn't affiliated with Apple.</p>
+  </div>
+</footer>
+
+<script>
+(() => {
+  // The header gets a hairline once the page scrolls.
+  const header = document.querySelector('.site-header');
+  const onScroll = () => header.classList.toggle('is-scrolled', window.scrollY > 4);
+  onScroll();
+  addEventListener('scroll', onScroll, { passive: true });
+
+  // One primary action in view: the header's Download button turns primary only while
+  // neither the hero's nor the closing Download button is on screen.
+  const nav = document.getElementById('nav-download');
+  const targets = ['hero-download', 'closing-download'].map((id) => document.getElementById(id));
+  if ('IntersectionObserver' in window) {
+    const visible = new Set();
+    const observer = new IntersectionObserver((entries) => {
+      for (const e of entries) e.isIntersecting ? visible.add(e.target) : visible.delete(e.target);
+      const primary = visible.size === 0 && window.scrollY > 200;
+      nav.classList.toggle('btn-primary', primary);
+      nav.classList.toggle('btn-secondary', !primary);
+    });
+    targets.forEach((t) => observer.observe(t));
+  }
+
+  // Point the Download buttons at the newest release's .zip, and show its version and size.
+  fetch('https://api.github.com/repos/isura-sandeepa/freshet/releases/latest', { headers: { Accept: 'application/vnd.github+json' } })
+    .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+    .then((release) => {
+      const asset = (release.assets || []).find((a) => /\.zip$/i.test(a.name));
+      if (!asset) return;
+      document.querySelectorAll('[data-download]').forEach((a) => { a.href = asset.browser_download_url; });
+      const version = String(release.tag_name || '').replace(/^v/i, '');
+      if (version) document.querySelectorAll('[data-version]').forEach((el) => { el.textContent = version; });
+      const mb = asset.size / 1e6;
+      document.querySelectorAll('[data-size]').forEach((el) => { el.textContent = `${mb < 10 ? mb.toFixed(1) : Math.round(mb)} MB`; });
+    })
+    .catch(() => {});
+})();
+</script>
+</body>
+</html>

@@ -9,3 +9,4 @@ build/
 Scripts/devloop.sh
 Scripts/publish-to-github.sh
 Scripts/commit-and-push.sh
+Scripts/publish-release.sh
